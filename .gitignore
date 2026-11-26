@@ -1,23 +1,61 @@
+# ==========================================
+# Python Virtual Environments
+# ==========================================
 venv/
 .venv/
 
+# ==========================================
+# Python Cache and Test Files
+# ==========================================
 __pycache__/
 *.pyc
 .pytest_cache/
 
+# ==========================================
+# Environment Variables and API Keys
+# ==========================================
 .env
+.env.*
+!.env.example
 
+# ==========================================
+# Large or Raw Datasets
+# ==========================================
 data/*.jsonl
 data/*.json
 data/*.tmp
+data/*.xlsx
 
-logs/*.log
+# Raw incident datasets should not be committed
+data/raw/
 
+# ==========================================
+# Processed Data
+# ==========================================
+# Keep the small processed NYC Parquet file
+# available for team integration.
+# data/neighbourhood_month.parquet is NOT ignored.
+
+# ==========================================
+# Logs and Temporary Files
+# ==========================================
+*.log
+*.tmp
+*.temp
+
+# ==========================================
+# IDE and Editor Files
+# ==========================================
 .vscode/
 .idea/
-data/*.parquet
 
+# ==========================================
+# Jupyter Notebook Checkpoints
+# ==========================================
 .ipynb_checkpoints/
 
-data/*.xlsx
-data/hn_manual_label_sample.csv
+# ==========================================
+# Operating System Files
+# ==========================================
+.DS_Store
+Thumbs.db
