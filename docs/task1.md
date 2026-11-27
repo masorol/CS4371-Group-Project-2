@@ -31,7 +31,7 @@ The Docker environment provides Python, Java, and PySpark, so a local Python vir
 ### 1. Run the full pipeline
 
 ```powershell
-docker compose run --rm app python src/build_pipeline.py
+docker compose run --rm app python src/task1_dataset.py
 ```
 
 This runs the complete Task 1 workflow.
@@ -41,7 +41,7 @@ This runs the complete Task 1 workflow.
 To test the pipeline with 1,000 records:
 
 ```powershell
-docker compose run --rm app python src/build_pipeline.py --limit 1000
+docker compose run --rm app python src/task1_dataset.py --limit 1000
 ```
 
 This generates sample outputs rather than the full production outputs.
