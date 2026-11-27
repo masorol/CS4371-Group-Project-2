@@ -16,7 +16,7 @@ import pandas as pd
 from scipy.stats import spearmanr
 from dotenv import load_dotenv
 
-DATA = Path("data/processed/neighbourhood_month.parquet")
+DATA = Path("data/neighbourhood_month.parquet")
 CACHE = Path("cache/t3")
 OUTPUT = Path("outputs")
 
