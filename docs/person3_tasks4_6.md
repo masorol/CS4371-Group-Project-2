@@ -2,7 +2,7 @@
 
 Owner: Sal (Salamot Fakoya)
 Branch: `person3-hotels-weather`
-Tested on Python 3.13 and 3.14.
+Tested on Python 3.14.
 
 ## Status
 
@@ -16,7 +16,7 @@ Tested on Python 3.13 and 3.14.
 ## Setup
 
 ```powershell
-python -m venv .venv
+py -3.14 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
