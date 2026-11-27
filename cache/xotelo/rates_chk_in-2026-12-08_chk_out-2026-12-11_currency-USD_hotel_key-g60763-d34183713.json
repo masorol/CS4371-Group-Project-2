@@ -1,1 +1,1 @@
-{"error": null, "result": {"chk_in": "2026-12-08", "chk_out": "2026-12-11", "currency": "USD", "rates": []}, "timestamp": 1795784594929}
+{"error": null, "result": {"chk_in": "2026-12-08", "chk_out": "2026-12-11", "currency": "USD", "rates": []}, "timestamp": 1795784594929, "_received_at": "2026-11-27T13:03:22+00:00", "_received_at_source": "file modification time (backfilled)"}
