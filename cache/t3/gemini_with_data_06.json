@@ -1,0 +1,10 @@
+{
+  "provider": "gemini",
+  "model": "gemini-3.5-flash-lite",
+  "condition": "with_data",
+  "batch": 6,
+  "retrieved_at_utc": "2026-11-27T02:24:20.641368+00:00",
+  "prompt_sha256": "ffafe5a1681ba1a46e7d5df23a163ed99d7fb784961d1a85e0d10edcbadeb9d1",
+  "prompt": "You are evaluating reported NYPD complaints, NOT individual visitor safety. For EACH supplied NYC police precinct, assign an integer rating from 1 to 5, where 1 means fewest reported incidents and 5 means most, relative to NYC precincts. Also estimate its average reported incidents per month. Return JSON ONLY in this format: {\"predictions\":[{\"precinct\":\"1\",\"rating\":3,\"estimated_monthly_incidents\":100.0}]}. Include every precinct exactly once. Do not invent additional precincts. The supplied actual_monthly_avg values are verified monthly averages for 2022-2024. Use these values as the basis for your estimates and ratings.\nINPUT DATA:\n[{\"precinct\": \"83\", \"actual_monthly_avg\": 617.1944}, {\"precinct\": \"84\", \"actual_monthly_avg\": 536.8056}, {\"precinct\": \"88\", \"actual_monthly_avg\": 348.6667}, {\"precinct\": \"9\", \"actual_monthly_avg\": 499.2778}, {\"precinct\": \"90\", \"actual_monthly_avg\": 542.3056}, {\"precinct\": \"94\", \"actual_monthly_avg\": 367.4722}]",
+  "raw_response": "{\n  \"predictions\": [\n    {\n      \"precinct\": \"83\",\n      \"rating\": 5,\n      \"estimated_monthly_incidents\": 617.2\n    },\n    {\n      \"precinct\": \"84\",\n      \"rating\": 4,\n      \"estimated_monthly_incidents\": 536.8\n    },\n    {\n      \"precinct\": \"88\",\n      \"rating\": 2,\n      \"estimated_monthly_incidents\": 348.7\n    },\n    {\n      \"precinct\": \"9\",\n      \"rating\": 4,\n      \"estimated_monthly_incidents\": 499.3\n    },\n    {\n      \"precinct\": \"90\",\n      \"rating\": 4,\n      \"estimated_monthly_incidents\": 542.3\n    },\n    {\n      \"precinct\": \"94\",\n      \"rating\": 2,\n      \"estimated_monthly_incidents\": 367.5\n    }\n  ]\n}"
+}
