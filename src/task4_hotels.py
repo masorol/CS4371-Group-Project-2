@@ -8,7 +8,7 @@ import requests
 
 from src.geo_utils import load_precincts, find_precinct, haversine_km
 
-
+N_HOTELS = 800
 CACHE_DIR = os.path.join("cache", "xotelo")
 BASE_URL = "https://data.xotelo.com/api"
 NYC_LOCATION_KEY = "g60763"
@@ -66,6 +66,7 @@ def fetch_hotel_list(n_hotels=60, page_size=30, live=False):
 	Page through the Xotelo hotel list for NYC until we have n_hotels unique hotels.
 	"""
 	hotels = []
+	skipped_no_geo = 0
 	seen = set()
 	offset = 0
 
@@ -78,29 +79,43 @@ def fetch_hotel_list(n_hotels=60, page_size=30, live=False):
 			if h["key"] in seen:
 				continue
 			seen.add(h["key"])
+
+			geo = h.get("geo") or {}
+			if geo.get("latitude") is None or geo.get("longitude") is None:
+				skipped_no_geo += 1
+				continue
+			review = h.get("review_summary") or {}
+
 			hotels.append({
 				"hotel_key": h["key"],
 				"name": h["name"],
 				"type": h["accommodation_type"],
-				"rating": h["review_summary"]["rating"],
-				"review_count": h["review_summary"]["count"],
-				"lat": h["geo"]["latitude"],
-				"lon": h["geo"]["longitude"],
+				"rating": review.get("rating"),
+				"review_count": review.get("count"),
+				"lat": geo["latitude"],
+				"lon": geo["longitude"],
 			})
 		offset += page_size
+	if skipped_no_geo:
+		print(f"  skipped {skipped_no_geo} hotels with no coordinates")
 	return hotels[:n_hotels]
 
 
-def fetch_rates(hotel_key, chk_in=CHK_IN, chk_out=CHK_OUT, live=False):
+def fetch_rates(hotel_key, chk_in=CHK_IN, chk_out=CHK_OUT, live=False, adults=None):
 	"""
 	Return a list of {platform, rate, tax, retrieved_at, source} for one hotel. Empty list if none.
+	adults=None leaves the guest count to Xotelo's default (matches the batch cache).
 	"""
-	data, source = cached_get("rates", {
+	params = {
 		"hotel_key": hotel_key,
-		"chk_in": chk_in,
-		"chk_out": chk_out,
+		"chk_in":chk_in,
+		"chk_out":chk_out,
 		"currency": "USD",
-	}, live=live)
+	}
+	if adults is not None:
+		params["adults"] = adults
+	data, source = cached_get("rates", params, live=live)
+	
 	if not data.get("result"):
 		return []
 
@@ -121,7 +136,7 @@ def fetch_rates(hotel_key, chk_in=CHK_IN, chk_out=CHK_OUT, live=False):
 	return rows
 
 
-def fetch_all_rates(hotels, chk_in=CHK_IN, chk_out=CHK_OUT, live=False):
+def fetch_all_rates(hotels, chk_in=CHK_IN, chk_out=CHK_OUT, live=False, adults=None):
 	"""
 	Fetch rates for every hotel. Skips failures instead of crashing.
 	Returns (long-format rate rows, list of (hotel_key, error) for failures).
@@ -131,7 +146,7 @@ def fetch_all_rates(hotels, chk_in=CHK_IN, chk_out=CHK_OUT, live=False):
 
 	for i, h in enumerate(hotels, start=1):
 		try:
-			for r in fetch_rates(h["hotel_key"], chk_in, chk_out, live=live):
+			for r in fetch_rates(h["hotel_key"], chk_in, chk_out, live=live, adults=adults):
 				r["hotel_key"] = h["hotel_key"]
 				all_rows.append(r)
 		except Exception as e:
@@ -198,18 +213,24 @@ def build_hotels_table(hotels, rate_rows, precincts, nights=NIGHTS):
 		dtype="Int64",
 	)
 
+	df["is_hostel"] = (df["type"] == "Hostel") | df["name"].str.contains("hostel", case=False)
+
 	return df.sort_values("cheapest_nightly").reset_index(drop=True)
 
 
-def cheapest_options(df, max_price, month):
+def cheapest_options(df, max_price, month, include_hostels=True):
 	"""
 	Return (cheapest hotel within budget, cheapest within budget outside the
 	month's top-5 incident precincts). Either can be None if nothing qualifies.
+	Set include_hostels=False to skip hostels, whose prices may be for a shared dorm bed
 	"""
-	in_budget = df[df["cheapest_nightly"] <= max_price].sort_values("cheapest_nightly")
+	in_budget = df[df["cheapest_nightly"] <= max_price]
+	if not include_hostels:
+		in_budget = in_budget[~in_budget["is_hostel"]]
+	in_budget = in_budget.sort_values("cheapest_nightly")
 	if in_budget.empty:
 		return None, None
-
+	
 	top5 = get_top5_precincts(month)
 	outside_top5 = in_budget[in_budget["precinct"].notna() & ~in_budget["precinct"].isin(top5)]
 
@@ -266,7 +287,7 @@ def describe_sources(df):
 	return f"Live prices for all {len(df)} hotels."
 
 
-def search_hotels(check_in, nights, max_price, n_hotels=20, live=True):
+def search_hotels(check_in, nights, max_price, guests=1, n_hotels=20, live=True):
 	"""
 	Entry point for the app (Task 5). Returns (hotels table, sentence describing the price sources).
 	Raises RuntimeError if no prices are available at all (API down and nothing cached).
@@ -276,7 +297,7 @@ def search_hotels(check_in, nights, max_price, n_hotels=20, live=True):
 	precincts = load_precincts()
 
 	hotels = fetch_hotel_list(n_hotels, live=live)
-	rows, failed = fetch_all_rates(hotels, chk_in.isoformat(), chk_out.isoformat(), live=live)
+	rows, failed = fetch_all_rates(hotels, chk_in.isoformat(), chk_out.isoformat(), live=live, adults=guests)
 	if not rows:
 		raise RuntimeError("The hotel price service is unavailable and no cached prices exist for these dates.")
 
@@ -287,7 +308,7 @@ def search_hotels(check_in, nights, max_price, n_hotels=20, live=True):
 
 if __name__ == "__main__":
 	precincts = load_precincts()
-	hotels = fetch_hotel_list(60)
+	hotels = fetch_hotel_list(N_HOTELS)
 	budget = 150
 	chosen = ["ROW NYC", "The FIDI Hotel"]
 
@@ -299,6 +320,8 @@ if __name__ == "__main__":
 		print(f"\n=== Month {month}: {chk_in} to {chk_out} ({nights} nights) ===")
 
 		rows, failed = fetch_all_rates(hotels, chk_in, chk_out)
+		if failed:
+			print(f"  first failures: {failed[:3]}")
 		df = build_hotels_table(hotels, rows, precincts, nights=nights)
 		df.insert(0, "stay_month", month)
 		df.insert(1, "check_in", chk_in)
@@ -317,6 +340,11 @@ if __name__ == "__main__":
 			else:
 				print(f"{label}: {h['name']} (precinct {h['precinct']}), "
 					  f"${h['cheapest_nightly']}/night on {h['cheapest_site']}, ${h['total_stay']} total")
+		cheapest_room, _ = cheapest_options(df, budget, month, include_hostels=False)
+		if cheapest_room is not None:
+			print(f"Cheapest non-hostel under budget: {cheapest_room["name"]} "
+			f"(precinct {cheapest_room["precinct"]}), ${cheapest_room["cheapest_nightly"]}/night")
+
 
 		for name in chosen:
 			match = df.loc[df["name"] == name, "hotel_key"]
