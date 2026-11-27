@@ -10,7 +10,9 @@ Tested on Python 3.14.
 - [x] Task 4 code (`src/task4_hotels.py`): hotel list, rates by site, cheapest options, precinct assignment, nearby alternatives, live calls with labelled cache fallback
 - [x] Task 4 test run for July and December (60 hotels)
 - [x] Task 4 final run with 800 hotels for July and December (outputs and Xotelo cache committed)
+- [x] Task 4: guests parameter (`search_hotels(..., guests=N)`)
 - [ ] Task 4: confirm the months with Persons 1 and 2, and swap in the official Task 2 top-5 list
+- [ ] Tasks 4 and 6: switch to Person 1's final `neighbourhood_month.parquet` and decide how to handle precinct 116 (see Known data issues)
 - [x] Task 6 (`src/task6_best_months.py`): monthly temperatures combined with incident rates, top 3 months, sensitivity check
 - [ ] Task 6: rerun on Person 1's final `neighbourhood_month.parquet` (currently uses the example file)
 
@@ -68,7 +70,7 @@ Notes:
 ```python
 from src.task4_hotels import search_hotels
 
-df, message = search_hotels("2027-02-09", nights=3, max_price=200, n_hotels=20, live=True)
+df, message = search_hotels("2027-03-12", nights=2, max_price=150, guests=2, n_hotels=20, live=True)
 print(message)   # e.g. "Live prices for all 18 hotels."
 ```
 
@@ -76,7 +78,8 @@ print(message)   # e.g. "Live prices for all 18 hotels."
 - `live=True` calls Xotelo first. If Xotelo fails, cached prices are used and `message` says so, with their age.
 - `live=False` answers from the cache only (no API calls).
 - Raises `RuntimeError` if Xotelo is down and nothing is cached for those dates. The app should catch this and tell the user.
-- `guests` is not supported yet: Xotelo prices are for its default room.
+- `guests` is the number of adults (default 1). It is always sent to Xotelo, so live searches never rely on Xotelo's default. If the user gives no guest count, the app should either ask or use 1 deliberately.
+- Prices are per room per night, before taxes and fees.
 
 ### Other functions
 
@@ -129,6 +132,21 @@ Both are midweek, avoid holidays, and fall within Xotelo's roughly 11-month book
 - Error responses are never cached.
 - The batch run (`python -m src.task4_hotels`) uses `live=False`, so it only fetches what is missing. A run that is interrupted or rate-limited can simply be rerun.
 - The committed cache (`cache/xotelo/`, about 1,700 files, 0.7 MB) covers both batch stays, so the outputs can be rebuilt without calling Xotelo.
+- The guest count is part of the cache key: a 2-adult search is cached separately (`..._adults-2_...`) and never mixed with default prices.
+
+### Guests
+
+Xotelo's `adults` parameter changes both prices and which booking sites can sell the stay. For one hotel (West Side YMCA, July 13-16, 2027):
+
+| Adults | Agoda | Booking.com | Official site |
+|---|---|---|---|
+| 1 | $101 | $136 | $141 |
+| 2 | $108 | $145 | $151 |
+| 4 | $188 | $254 | $273 |
+
+Vio.com offered the stay for 1 and 2 adults but not for 4. Without `adults`, Xotelo prices 1 adult (the batch run's cached $101 matches the 1-adult price), so **the batch outputs `t4_hotels.csv` and `t4_nearby.csv` are 1-adult prices**. Two adults cost roughly 7% more.
+
+Test with 5 hotels in July and a $400 budget: 4 hotels fit for 1 guest and 2 for 4 guests (ROW NYC $186 to $279, The Empire Hotel $212 to $367).
 
 ### Test runs (60 hotels)
 
@@ -173,7 +191,7 @@ Findings for the report:
 ### Open decisions
 
 - Months: using July and December until Persons 1 and 2 confirm. If they change, only `STAYS` needs editing.
-- Whether Xotelo supports a guests/adults parameter.
+- Batch outputs stay at 1 adult; rerunning 1,600 requests for 2 adults would add about 7% to prices and risk another rate-limit.
 
 ## Task 6: Best month to visit (`src/task6_best_months.py`)
 
@@ -186,7 +204,7 @@ Output: `outputs/t6_best_months.csv`, one row per month, best first.
 ### Data
 
 - Temperatures: `data/city_temperature.csv` (from Homework 2 and 4). New York is spelled `"New York"`, with 1,827 daily rows for 2020 to 2024 and no `-99` values (the code still drops them as a safeguard). Temperatures are in °F.
-- Incidents: `data/neighbourhood_month_example.parquet` (Task 1). Switch `INCIDENTS_PATH` to Person 1's final `neighbourhood_month.parquet` when it exists.
+- Incidents: `data/neighbourhood_month_example.parquet` (Person 1's earlier draft of the Task 1 output). Switch `INCIDENTS_PATH` to Person 1's final `neighbourhood_month.parquet` when it exists.
 
 ### Columns
 
@@ -240,7 +258,34 @@ September and August stay in the top 3 under every weighting. June depends on th
 - Min-max scaling stretches small differences. Incident rates vary about 15% across the year, but scaling gives them the same 0-to-1 spread as a 33-degree temperature range, so it exaggerates how different the months are on safety.
 - Distance from 70°F treats too hot and too cold the same, and ignores humidity, rain and snow.
 - City-wide incident rates say little about the precinct a visitor actually stays in. Task 2 and Task 4 handle neighbourhood-level risk.
-- The incident figures come from the example parquet until Person 1's final file is in place.
+- The incident figures come from the example parquet (Person 1's earlier draft output, not a course file) until Person 1's final file is in place.
+- Temperatures cover 2020-2024 while incidents cover 2022-2024, as the handout specifies.
+- Monthly averages hide extremes: a month averaging 70°F can still include heat waves or cold snaps.
+- Summer incident rates partly reflect more people being out, not only higher risk.
+
+## Known data issues and limitations
+
+### Precinct 116 (affects Tasks 2, 4, 6 and 8)
+
+NYC created the 116th precinct in southeast Queens from parts of precincts 105 and 113 near the end of the 2022-2024 period. In the incident data it has 6 incidents in 2022, 10 in 2023 and 312 in 2024, against roughly 8,000 to 9,000 a year in 105 and 113. Its low counts mean it barely existed yet, not that it is safe. The precinct boundary file is current, so a hotel or attraction in that area is assigned to 116 and looks far safer than it is. The team needs one rule for it (exclude it, or use 2024 only) and should state it in the report.
+
+### Hotel prices (Task 4)
+
+- **Taxes and fees are not included.** Xotelo returned `tax: null` for every rate, so `cheapest_nightly` and `total_stay` are pre-tax. NYC hotel taxes add roughly 15% plus a small per-night fee.
+- **The cheapest site may not be like for like.** Sites can quote different room types or cancellation terms, so a cheap non-refundable rate is not the same product as a flexible one.
+- **Prices are snapshots.** They changed noticeably overnight for the December stay. `retrieved_at` records when each was fetched.
+- **The hotel list is ranked by popularity, not sampled at random**, so it leans toward well-known Manhattan hotels.
+- **Batch prices are for 1 adult** (see Guests).
+
+### Distances and precincts (Tasks 4 and 8)
+
+- **Haversine is straight-line distance.** It ignores rivers, bridges and transit, so a Brooklyn hotel "within 2 km" of Lower Manhattan can be a much longer trip.
+- **Points exactly on a shared boundary** are assigned to the first precinct that contains them. This is rare.
+
+### Incident counts (Tasks 2, 4, 6 and 8)
+
+- **Counts are not risk.** Busy areas such as Midtown (precinct 14) rank high partly because so many people pass through them. Without resident or visitor numbers, counts overstate the risk in tourist areas.
+- **Reported is not the same as occurring.** Complaint data only includes incidents someone reported.
 
 ## Data sources
 
