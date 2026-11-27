@@ -1,6 +1,6 @@
 # Places to visit and best neighbourhoods -- December
 
-**Sources:** OpenStreetMap Overpass API (attractions, retrieved 2026-11-27T07:00:33+00:00); Task 4 hotel prices (retrieved 2026-11-27T13:14:50+00:00); Task 2 stand-in incident averages from `data/neighbourhood_month.parquet` (NYPD data, 2022-2024). Map data (c) OpenStreetMap contributors, ODbL.
+**Sources:** OpenStreetMap Overpass API (attractions, retrieved 2026-11-27T18:32:23+00:00); Task 4 hotel prices (retrieved 2026-11-27T13:14:50+00:00); Task 2 stand-in incident averages from `data/processed/neighbourhood_month.parquet` (NYPD data, 2022-2024). Map data (c) OpenStreetMap contributors, ODbL.
 
 ## Top 10 places to visit
 
@@ -29,4 +29,4 @@
 
 ## Summary
 
-_The LLM summary did not pass the number check twice, so it is left out here. See the tables above for the grounded numbers._
+In December, visitors can enjoy iconic sites such as Gapstow Bridge, Central Park Zoo, Central Park Carousel, Delacorte Musical Clock, Bow Bridge, Bethesda Fountain, Central Park, Cleopatra’s Needle, the Metropolitan Museum of Art, and Blockhouse No. 1, all located in precinct 22. These attractions each report an average of 14.3 incidents, and the surrounding area offers a range of lodging options, with up to 37 hotels within 1 km of Gapstow Bridge and as few as 1 hotel within 1 km of Blockhouse No. 1. The most affordable nightly rate among these nearby hotels is $76.0 at Blockhouse No. 1, while several sites such as Central Park, Cleopatra’s Needle, and the Metropolitan Museum of Art list a cheapest nightly rate of $2,225.0. For broader exploration, precinct 10 provides 138 attractions, reports an average of 314.7 incidents, and includes 1 budget‑friendly hotel with a median nightly price of $129.0. Precinct 5 offers 76 attractions with an average of 394.3 incidents and 2 budget‑friendly hotels at a median nightly rate of $145.0, while precinct 20, with 29 attractions and an average of 297.7 incidents, also has 1 budget‑friendly hotel at $121.0 per night, making these precincts attractive bases for December visitors.

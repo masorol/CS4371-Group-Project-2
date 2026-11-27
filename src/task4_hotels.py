@@ -1,6 +1,7 @@
 import json
 import os
 import time
+import zipfile
 from datetime import date, datetime, timedelta, timezone
 
 import pandas as pd
@@ -174,6 +175,19 @@ def get_precinct_month_avg(month, path=INCIDENTS_PATH):
 	(not just the top 5). Used by Task 8 to give each attraction's precinct an
 	incident level. Returns a pandas Series indexed by precinct (int).
 	"""
+	if not os.path.exists(path):
+		zip_path = path + ".zip"
+		if os.path.exists(zip_path):
+			# Task 1's output is committed zipped (data/processed/ is gitignored
+			# otherwise); extract it the first time it's needed.
+			with zipfile.ZipFile(zip_path) as zf:
+				zf.extractall(os.path.dirname(path))
+		else:
+			raise FileNotFoundError(
+				f"{path} not found (and no {zip_path} to extract it from). "
+				f"Make sure Task 1's output is present under data/processed/."
+			)
+
 	df = pd.read_parquet(path)
 	monthly = df[df["month"] == month]
 	return monthly.groupby("precinct")["total_incidents"].mean()

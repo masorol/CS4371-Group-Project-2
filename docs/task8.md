@@ -6,7 +6,7 @@ Task 8 finds attractions from OpenStreetMap, adds each one's reported-incident a
 
 **Data sources:**
 - OpenStreetMap, via the free Overpass API (attractions: museums, galleries, viewpoints, zoos, aquariums, theme parks, places tagged `tourism=attraction`, and named parks).
-- `data/neighbourhood_month.parquet` (Task 1's output) — **temporary** stand-in for Task 2's per-precinct monthly incident averages.
+- `data/processed/neighbourhood_month.parquet` (Task 1's output) — **temporary** stand-in for Task 2's per-precinct monthly incident averages.
 - `outputs/t4_hotels.csv` (Task 4's output) — hotel locations and cheapest nightly prices.
 - Groq (`openai/gpt-oss-120b`) for the grounded traveler summary.
 
@@ -16,7 +16,7 @@ Task 8 finds attractions from OpenStreetMap, adds each one's reported-incident a
 
 **Input:**
 - `data/precincts.geojson` (downloaded automatically by `src.geo_utils.load_precincts`)
-- `data/neighbourhood_month.parquet`
+- `data/processed/neighbourhood_month.parquet.zip` — Task 1's output, committed zipped (`data/processed/` is otherwise gitignored). `get_precinct_month_avg`/`get_top5_precincts` extract it to `data/processed/neighbourhood_month.parquet` automatically the first time they're called; no manual unzip step needed.
 - `outputs/t4_hotels.csv` — **must exist before running Task 8.** Generate it with `python -m src.task4_hotels` if it's missing.
 
 **Implementation:**
@@ -56,7 +56,7 @@ GROQ_API_KEY=your_groq_api_key
 
 ### 3. Generate Task 4's hotel data first
 
-Task 8 reads `outputs/t4_hotels.csv` for the "hotels within 1 km" and "hotels in budget" context. If it doesn't exist yet:
+Task 8 reads `outputs/t4_hotels.csv` for the "hotels within 1 km" and "hotels in budget" context. The real 800-hotel run is already committed at `outputs/t4_hotels.csv` (722 hotels with prices: 397 for July, 325 for December). If it's ever missing or stale, regenerate it with:
 
 ```bash
 python -m src.task4_hotels
@@ -67,6 +67,8 @@ python -m src.task4_hotels
 ```bash
 python -m src.task8_attractions
 ```
+
+The Overpass API is a shared, free public server that occasionally answers with a transient 5xx error under load; `fetch_attractions_raw` retries with backoff (up to 4 attempts) before giving up, so a single flaky response shouldn't break the run.
 
 This:
 1. Downloads NYC precinct boundaries (cached after the first run).
@@ -103,8 +105,8 @@ Following the same pattern as Task 2/3: only the top 10 attractions and top 5 ne
 ## Notes
 
 - **Precincts, not named neighbourhoods.** Like Task 3/4, NYC's open data only gives NYPD precinct numbers, not named neighbourhoods, so "neighbourhood" in this project's outputs means "precinct."
-- **Task 2 stand-in.** `get_precinct_month_avg(month)` (in `src/task4_hotels.py`) is a **temporary** replacement for Person 1's real Task 2 output — the average reported incidents per precinct for a given month, computed directly from `data/neighbourhood_month.parquet`. Swap it out once Task 2's official per-precinct, per-month averages exist.
-- **Hotel data is still the 60-hotel test run.** `outputs/t4_hotels.csv` currently comes from Task 4's 60-hotel test batch, not the planned ~800-hotel final run. Several neighbourhoods currently show 0 hotels within budget/1 km simply because the sample is small outside Midtown; re-run Task 8 once Person 3's larger hotel file lands — no code changes needed.
+- **Task 2 stand-in.** `get_precinct_month_avg(month)` (in `src/task4_hotels.py`) is a **temporary** replacement for Person 1's real Task 2 output — the average reported incidents per precinct for a given month, computed directly from `data/processed/neighbourhood_month.parquet`. Swap it out once Task 2's official per-precinct, per-month averages exist.
+- **Hotel data is the real 800-hotel run.** `outputs/t4_hotels.csv` now comes from Task 4's final batch (722 hotels with prices: 397 July, 325 December), a big improvement in coverage outside Midtown over the earlier 60-hotel test run — e.g. precinct 10 went from 0 to 3 hotels in budget, precinct 5 from 0 to 7.
 - **Responsible language.** Per the ground rules, neighbourhoods are described by their reported incidents, never as "dangerous" — both the scoring rule's framing and the LLM's system prompt enforce this.
 - **Validated precinct assignments:** Empire State Building → precinct 14; Central Park Zoo and the Metropolitan Museum of Art → precinct 22 (matching the validation points already recorded for `find_precinct` in [docs/person3_tasks4_6.md](./person3_tasks4_6.md)).
 - **Known OSM data-quality quirk:** a handful of `tourism=attraction` nodes are individual zoo exhibits or apparent vandalism (e.g. a single animal enclosure, or a nonsense name). These are kept since they match the spec's tag list as-is, but they score low (no Wikipedia tag) and don't appear in the observed top 10; worth a one-line mention in the report's limitations section.

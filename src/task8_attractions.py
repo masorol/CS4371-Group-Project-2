@@ -72,6 +72,10 @@ def build_overpass_query(bbox=NYC_BBOX):
 	return "[out:json][timeout:90];\n(\n" + "\n".join(clauses) + "\n);\nout center;"
 
 
+OVERPASS_MAX_ATTEMPTS = 4
+OVERPASS_RETRY_BASE_SECONDS = 5
+
+
 def fetch_attractions_raw(live=False, path=ATTRACTIONS_CACHE_PATH):
 	"""
 	Run the Overpass query once and cache the raw response to disk, so repeated
@@ -81,6 +85,8 @@ def fetch_attractions_raw(live=False, path=ATTRACTIONS_CACHE_PATH):
 	own JSON, with an "elements" list).
 	With live=False, the cache is used whenever it exists.
 	With live=True, the API is always queried again and the cache refreshed.
+	Overpass is a shared free server that occasionally answers with a
+	transient 5xx error under load; retry with backoff before giving up.
 	"""
 	os.makedirs(os.path.dirname(path), exist_ok=True)
 
@@ -89,13 +95,19 @@ def fetch_attractions_raw(live=False, path=ATTRACTIONS_CACHE_PATH):
 			return json.load(f), "cache"
 
 	query = build_overpass_query()
-	resp = requests.post(
-		OVERPASS_URL,
-		data={"data": query},
-		headers={"User-Agent": USER_AGENT},
-		timeout=120,
-	)
-	resp.raise_for_status()
+
+	for attempt in range(OVERPASS_MAX_ATTEMPTS):
+		resp = requests.post(
+			OVERPASS_URL,
+			data={"data": query},
+			headers={"User-Agent": USER_AGENT},
+			timeout=120,
+		)
+		if resp.status_code >= 500 and attempt < OVERPASS_MAX_ATTEMPTS - 1:
+			time.sleep(OVERPASS_RETRY_BASE_SECONDS * (2 ** attempt))
+			continue
+		resp.raise_for_status()
+		break
 
 	record = {
 		"retrieved_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -594,7 +606,7 @@ def format_summary_markdown(month, top10, top5, summary_text, passed,
 		f"**Sources:** OpenStreetMap Overpass API (attractions, retrieved "
 		f"{overpass_retrieved_at}); Task 4 hotel prices (retrieved "
 		f"{hotels_retrieved_at}); Task 2 stand-in incident averages from "
-		f"`data/neighbourhood_month.parquet` (NYPD data, 2022-2024). "
+		f"`data/processed/neighbourhood_month.parquet` (NYPD data, 2022-2024). "
 		f"Map data (c) OpenStreetMap contributors, ODbL."
 	)
 	lines.append("")
