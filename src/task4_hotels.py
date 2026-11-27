@@ -14,8 +14,14 @@ BASE_URL = "https://data.xotelo.com/api"
 NYC_LOCATION_KEY = "g60763"
 INCIDENTS_PATH = os.path.join("data", "neighbourhood_month_example.parquet")
 
-CHK_IN = "2027-01-15"
-CHK_OUT = "2027-01-18"
+# One stay per Task 2 / Task 8 month: Tuesday to Friday, 3 nights, no holidays
+STAYS = {
+	7: ("2027-07-13", "2027-07-16"),
+	12: ("2026-12-08", "2026-12-11"),
+}
+
+# Defaults for functions called without dates (the first stay)
+CHK_IN, CHK_OUT = STAYS[7]
 NIGHTS = (date.fromisoformat(CHK_OUT) - date.fromisoformat(CHK_IN)).days
 
 
@@ -99,7 +105,7 @@ def fetch_rates(hotel_key, chk_in=CHK_IN, chk_out=CHK_OUT, live=False):
 		return []
 
 	ts = data.get("timestamp")
-	retrieved_at = datetime.fromtimestamp(ts / 1000, tz=timezone.utc).isoformat() if ts else None
+	retrieved_at = datetime.fromtimestamp(ts / 1000, tz=timezone.utc).isoformat(timespec="seconds") if ts else None
 
 	rows = []
 	for r in data["result"].get("rates", []):
@@ -174,7 +180,7 @@ def build_hotels_table(hotels, rate_rows, precincts, nights=NIGHTS):
 
 	# How old each price is, so cached prices can be labelled with their age
 	now = datetime.now(timezone.utc)
-	retrieved = pd.to_datetime(df["retrieved_at"], utc=True)
+	retrieved = pd.to_datetime(df["retrieved_at"], utc=True, format="ISO8601")
 	df["price_age_hours"] = ((now - retrieved).dt.total_seconds() / 3600).round(1)
 
 	df["precinct"] = pd.array(
@@ -272,41 +278,49 @@ def search_hotels(check_in, nights, max_price, n_hotels=20, live=True):
 if __name__ == "__main__":
 	precincts = load_precincts()
 	hotels = fetch_hotel_list(60)
-	rows, failed = fetch_all_rates(hotels)
-	df = build_hotels_table(hotels, rows, precincts)
+	budget = 150
+	chosen = ["ROW NYC", "The FIDI Hotel"]
 
-	print(f"{len(hotels)} hotels fetched, {len(df)} with prices, "
-		  f"{df['precinct'].isna().sum()} outside NYC precincts, {len(failed)} failed")
-	print(df[["name", "precinct", "cheapest_site", "cheapest_nightly", "total_stay"]].head(10).to_string())
+	hotel_tables = []
+	nearby_tables = []
+
+	for month, (chk_in, chk_out) in STAYS.items():
+		nights = (date.fromisoformat(chk_out) - date.fromisoformat(chk_in)).days
+		print(f"\n=== Month {month}: {chk_in} to {chk_out} ({nights} nights) ===")
+
+		rows, failed = fetch_all_rates(hotels, chk_in, chk_out)
+		df = build_hotels_table(hotels, rows, precincts, nights=nights)
+		df.insert(0, "stay_month", month)
+		df.insert(1, "check_in", chk_in)
+
+		print(f"{len(hotels)} hotels fetched, {len(df)} with prices, "
+			  f"{df['precinct'].isna().sum()} outside NYC precincts, {len(failed)} failed")
+		print(describe_sources(df))
+		hotel_tables.append(df)
+
+		print(f"Top-5 incident precincts: {get_top5_precincts(month)}")
+		cheapest, cheapest_outside = cheapest_options(df, budget, month)
+		for label, h in [("Cheapest under budget", cheapest),
+						 ("Cheapest under budget, outside top 5", cheapest_outside)]:
+			if h is None:
+				print(f"{label}: none found")
+			else:
+				print(f"{label}: {h['name']} (precinct {h['precinct']}), "
+					  f"${h['cheapest_nightly']}/night on {h['cheapest_site']}, ${h['total_stay']} total")
+
+		for name in chosen:
+			match = df.loc[df["name"] == name, "hotel_key"]
+			if match.empty:
+				print(f"{name}: no price for this stay, skipped")
+				continue
+			nb = find_nearby(df, match.iloc[0])
+			nb.insert(0, "stay_month", month)
+			print(f"{name}: {len(nb)} hotels within 2 km, "
+				  f"{(nb['savings_per_night'] > 0).sum()} of them cheaper")
+			nearby_tables.append(nb)
 
 	os.makedirs("outputs", exist_ok=True)
-	df.to_csv(os.path.join("outputs", "t4_hotels.csv"), index=False)
-	print("Saved outputs/t4_hotels.csv")
-	print(describe_sources(df))
-
-	# Cheapest options within budget
-	month = date.fromisoformat(CHK_IN).month
-	budget = 150
-	print(f"\nTop-5 incident precincts for month {month}: {get_top5_precincts(month)}")
-	cheapest, cheapest_outside = cheapest_options(df, budget, month)
-	for label, h in [("Cheapest under budget", cheapest),
-					 ("Cheapest under budget, outside top 5", cheapest_outside)]:
-		if h is None:
-			print(f"{label}: none found")
-		else:
-			print(f"{label}: {h['name']} (precinct {h['precinct']}), "
-				  f"${h['cheapest_nightly']}/night on {h['cheapest_site']}, ${h['total_stay']} total")
-
-	# Nearby alternatives for two chosen hotels
-	chosen = ["ROW NYC", "The FIDI Hotel"]
-	nearby_tables = []
-	for name in chosen:
-		key = df.loc[df["name"] == name, "hotel_key"].iloc[0]
-		nb = find_nearby(df, key)
-		print(f"\n{name}: {len(nb)} hotels within 2 km, "
-			  f"{(nb['savings_per_night'] > 0).sum()} of them cheaper")
-		print(nb[["name", "precinct", "cheapest_nightly", "savings_per_night", "distance_km"]].head(5).to_string())
-		nearby_tables.append(nb)
-
+	pd.concat(hotel_tables).to_csv(os.path.join("outputs", "t4_hotels.csv"), index=False)
 	pd.concat(nearby_tables).to_csv(os.path.join("outputs", "t4_nearby.csv"), index=False)
-	print("\nSaved outputs/t4_nearby.csv")
+	print("\nSaved outputs/t4_hotels.csv and outputs/t4_nearby.csv")
+
