@@ -14,3 +14,4 @@ scipy
 groq
 google-genai
 python-dotenv
+tabulate
