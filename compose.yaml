@@ -1,0 +1,14 @@
+services:
+  app:
+    build:
+      context: .
+    image: safestay-pyspark:4.3.0
+    working_dir: /app
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PYSPARK_PYTHON: python3
+      PYSPARK_DRIVER_PYTHON: python3

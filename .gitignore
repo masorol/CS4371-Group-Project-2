@@ -2,22 +2,32 @@ venv/
 .venv/
 
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 .env
-
-data/*.jsonl
-data/*.json
-data/*.tmp
-
-logs/*.log
-
-.vscode/
-.idea/
-data/*.parquet
+.env.*
+!.env.example
 
 .ipynb_checkpoints/
 
+.vscode/
+.idea/
+
+logs/
+*.log
+*.tmp
+*.temp
+
+data/*.jsonl
+data/*.json
+data/*.csv
 data/*.xlsx
-data/hn_manual_label_sample.csv
+
+data/*.parquet
+
+.DS_Store
+Thumbs.db
