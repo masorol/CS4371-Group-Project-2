@@ -8,8 +8,13 @@ venv/
 # Python Cache and Test Files
 # ==========================================
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
 # ==========================================
 # Environment Variables and API Keys
@@ -19,22 +24,22 @@ __pycache__/
 !.env.example
 
 # ==========================================
-# Large or Raw Datasets
+# Large or Generated Datasets
 # ==========================================
-data/*.jsonl
-data/*.json
-data/*.tmp
-data/*.xlsx
+# Ignore all JSONL, JSON, Parquet, and temporary data files
+data/**/*.jsonl
+data/**/*.json
+data/**/*.parquet
+data/**/*.tmp
+data/**/*.temp
+data/**/*.xlsx
+data/**/*.csv
 
-# Raw incident datasets should not be committed
+# Ignore raw downloaded datasets
 data/raw/
 
-# ==========================================
-# Processed Data
-# ==========================================
-# Keep the small processed NYC Parquet file
-# available for team integration.
-# data/neighbourhood_month.parquet is NOT ignored.
+# Ignore generated processed datasets
+data/processed/
 
 # ==========================================
 # Logs and Temporary Files
@@ -42,6 +47,9 @@ data/raw/
 *.log
 *.tmp
 *.temp
+*.bak
+*.swp
+*~
 
 # ==========================================
 # IDE and Editor Files
