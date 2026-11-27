@@ -344,38 +344,32 @@ def normalize_number(number):
         return None
 
 
+def find_unsupported(summary, llm_df):
+    metric_cols = [c for c in llm_df.select_dtypes(include="number").columns
+                   if c not in ("precinct", "rank")]
+    metric = {normalize_number(str(v)) for c in metric_cols for v in llm_df[c].dropna()}
+    metric.discard(None)
+    metric.add(Decimal("1"))
+    ids = {Decimal(int(p)) for p in llm_df["precinct"]} | {Decimal(i) for i in range(1, 6)}
+
+    bad = set()
+    for m in re.finditer(r"(?<![A-Za-z])[-+]?\d[\d,]*(?:\.\d+)?", summary):
+        tok = m.group()
+        n = normalize_number(tok)
+        if n is None or n in metric:
+            continue
+        followed_by_pct = summary[m.end():].lstrip().startswith("%")
+        if tok.isdigit() and n in ids and not followed_by_pct:
+            continue
+        bad.add(n)
+    return bad
+
+
 def validate_summary(summary, llm_df):
-
-    numeric_columns = llm_df.select_dtypes(
-        include="number"
-    ).columns
-
-    allowed_numbers = {
-        normalize_number(str(value))
-        for column in numeric_columns
-        for value in llm_df[column].dropna()
-    }
-
-    allowed_numbers.discard(None)
-
-    allowed_numbers.add(Decimal("1"))
-
-    summary_numbers = {
-        normalize_number(value)
-        for value in extract_numbers(summary)
-    }
-
-    summary_numbers.discard(None)
-
-    unsupported = summary_numbers - allowed_numbers
-
-    if unsupported:
-        print(
-            "Summary contains unsupported numbers:",
-            sorted(str(value) for value in unsupported)
-        )
+    bad = find_unsupported(summary, llm_df)
+    if bad:
+        print("Summary contains unsupported numbers:", sorted(str(v) for v in bad))
         return False
-
     return bool(summary.strip())
 
 
@@ -424,6 +418,7 @@ def generate_summary(month, llm_df):
         - Do not introduce numerical values that do not appear exactly in the CSV, except for 1 when explaining
             the seasonal-ratio baseline.
         - Do not calculate additional percentages or ratios.
+        - Do not convert ratios into percentages (never write "40 % above"); say "ratio 1.4" instead.
         - Do not round values or replace precise values with approximations.
         - Do not express numerical values in words.
         - Organize the explanation into three sections: highest incidents, largest seasonal ratios, and
@@ -478,10 +473,12 @@ def generate_summary(month, llm_df):
 
         if not summary.strip():
             print("LLM returned an empty response.")
+            prompt += "\n\nYour previous reply was empty. Respond again, concisely.\n"
             continue
 
         if finish_reason == "length":
             print("LLM response was truncated.")
+            prompt += "\n\nYour previous reply was cut off. Respond again, more concisely.\n"
             continue
 
         print("\nLLM response:")
@@ -491,22 +488,7 @@ def generate_summary(month, llm_df):
             print("LLM summary passed number validation.")
             return summary
 
-        unsupported_numbers = (
-            {
-                normalize_number(value)
-                for value in extract_numbers(summary)
-            }
-            - {
-                normalize_number(str(value))
-                for column in llm_df.select_dtypes(
-                    include="number"
-                ).columns
-                for value in llm_df[column].dropna()
-            }
-            - {Decimal("1")}
-        )
-
-        unsupported_numbers.discard(None)
+        unsupported_numbers = find_unsupported(summary, llm_df)
 
         print(
             "Retrying because of unsupported numbers:",
@@ -569,11 +551,11 @@ def save_outputs(month, outlook, llm_df, summary):
 
         file.write("## Top-Five Lists\n\n")
         file.write(llm_df.to_markdown(index=False))
-        file.write("\n## Notes\n\n")
+        file.write("\n\n## Notes\n\n")
         file.write("- Figures are reported incidents (NYPD complaints by occurrence date, 2022-2024), averaged over the three years. They are not a measure of personal safety or individual risk.\n")
         file.write("- Neighbourhood = NYPD precinct. Seasonal ratio = chosen-month average / average over all 36 months.\n")
         file.write(f"- Summary written by {GROQ_MODEL}; every number in it was checked in code against the table above.\n")
-        file.write("- Precinct 116 is excluded from this analysis: <state your reason and how many incidents it had>.\n")
+        file.write("- Precinct 116 is excluded from this analysis: it was established in December 2024, so it did not have sufficient data for analysis.\n")
         file.write("\n")
 
     print(f"\nSaved CSV: {csv_path}")
