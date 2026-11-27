@@ -126,7 +126,7 @@ def fetch_all_rates(hotels):
 
 	return all_rows, failed
 
-def get_top5_precincts(months, path=INCIDENTS_PATH):
+def get_top5_precincts(month, path=INCIDENTS_PATH):
 	"""
 	TEMPORARY stand-in for Person 1's Task 2 output.
 	Top 5 precincts by average incidents in the given month (1-2), 2022 - 2024.
@@ -167,6 +167,23 @@ def build_hotels_table(hotels, rate_rows, precincts, nights=NIGHTS):
 	return df.sort_values("cheapest_nightly").reset_index(drop=True)
 
 
+def cheapest_options(df, max_price, month):
+	"""
+	Return (cheapest hotel within budget, cheapest within budget outside the month's top-5 incident precincts).
+	Either can be None if nothing qualifies.
+	"""
+	in_budget = df[df["cheapest_nightly"] <= max_price].sort_values("cheapest_nightly")
+	if in_budget.empty:
+		return None, None
+	top5 = get_top5_precincts(month)
+	outside_top5 = in_budget[in_budget["precinct"].notna() & ~in_budget["precinct"].isin(top5)]
+
+	cheapest = in_budget.iloc[0]
+	cheapest_outside = outside_top5.iloc[0] if not outside_top5.empty else None
+
+	return cheapest, cheapest_outside
+
+
 
 if __name__ == "__main__":
 	precincts = load_precincts()
@@ -177,3 +194,18 @@ if __name__ == "__main__":
 	print(f"{len(hotels)} hotels fetched, {len(df)} with prices, {df["precinct"].isna().sum()} outside NYC precincts, {len(failed)} failed")
 	print(df[["name", "precinct", "cheapest site", "cheapest_nightly", "total_stay"]].head(10).to_string())
 
+	os.makedirs("outputs", exist_ok=True)
+	df.to_csv(os.path.join("outputs", "t4_hotels.csv"), index=False)
+	print("Saved outputs/t4_hotels.csv")
+
+	month = date.fromisoformat(CHK_IN).month
+	budget = 150
+	print(f"\nTop-5 incident precincts for month {month}: {get_top5_precincts(month)}")
+	cheapest, cheapest_outside = cheapest_options(df, budget, month)
+	for label, h in [("Cheapest under budget", cheapest),
+					 ("Cheapest under budget, outside top 5", cheapest_outside)]:
+		if h is None:
+			print(f"{label}: none found")
+		else:
+			print(f"{label}: {h['name']} (precinct {h['precinct']}), "
+				  f"${h['cheapest_nightly']}/night on {h['cheapest site']}, ${h['total_stay']} total")
