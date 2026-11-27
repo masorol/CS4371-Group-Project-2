@@ -12,7 +12,7 @@ N_HOTELS = 800
 CACHE_DIR = os.path.join("cache", "xotelo")
 BASE_URL = "https://data.xotelo.com/api"
 NYC_LOCATION_KEY = "g60763"
-INCIDENTS_PATH = os.path.join("data", "neighbourhood_month.parquet")
+INCIDENTS_PATH = os.path.join("data", "processed", "neighbourhood_month.parquet")
 
 # One stay per Task 2 / Task 8 month: Tuesday to Friday, 3 nights, no holidays
 STAYS = {
