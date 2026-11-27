@@ -1,7 +1,7 @@
 import json
 import os
 import time
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pandas as pd
 import requests
@@ -19,31 +19,43 @@ CHK_OUT = "2027-01-18"
 NIGHTS = (date.fromisoformat(CHK_OUT) - date.fromisoformat(CHK_IN)).days
 
 
-def cached_get(endpoint, params):
+def cached_get(endpoint, params, live=False):
 	"""
-	GET from Xotelo, saving each response to disk.
-	Later calls with the same params read the saved file instead of hitting the API.
+	GET from Xotelo with a disk cache. Returns (data, source), where source is:
+	  "live"           fresh answer from the API (and saved to the cache)
+	  "cache"          read from the cache without calling the API
+	  "cache_fallback" the API call failed, so the cached copy was used instead
+	With live=False, the cache is used whenever it exists.
+	With live=True, the API is always tried first.
 	"""
 	os.makedirs(CACHE_DIR, exist_ok=True)
 	name = endpoint + "_" + "_".join(f"{k}-{v}" for k, v in sorted(params.items()))
 	path = os.path.join(CACHE_DIR, name + ".json")
+	have_cache = os.path.exists(path)
 
-	if os.path.exists(path):
-		with open(path, encoding="utf-8") as f:
-			return json.load(f)
+	if live or not have_cache:
+		try:
+			resp = requests.get(f"{BASE_URL}/{endpoint}", params=params, timeout=30)
+			resp.raise_for_status()
+			data = resp.json()
+			if data.get("error"):
+				raise RuntimeError(f"Xotelo error: {data['error']}")
+		except (requests.RequestException, ValueError, RuntimeError):
+			if not have_cache:
+				raise
+			with open(path, encoding="utf-8") as f:
+				return json.load(f), "cache_fallback"
 
-	resp = requests.get(f"{BASE_URL}/{endpoint}", params=params, timeout=30)
-	resp.raise_for_status()
-	data = resp.json()
+		with open(path, "w", encoding="utf-8") as f:
+			json.dump(data, f)
+		time.sleep(1)
+		return data, "live"
 
-	with open(path, "w", encoding="utf-8") as f:
-		json.dump(data, f)
-	time.sleep(1)
-
-	return data
+	with open(path, encoding="utf-8") as f:
+		return json.load(f), "cache"
 
 
-def fetch_hotel_list(n_hotels=60, page_size=30):
+def fetch_hotel_list(n_hotels=60, page_size=30, live=False):
 	"""
 	Page through the Xotelo hotel list for NYC until we have n_hotels unique hotels.
 	"""
@@ -52,9 +64,7 @@ def fetch_hotel_list(n_hotels=60, page_size=30):
 	offset = 0
 
 	while len(hotels) < n_hotels:
-		data = cached_get("list", {"location_key": NYC_LOCATION_KEY, "offset": offset, "limit": page_size})
-		if data.get("error"):
-			raise RuntimeError(f"Xotelo error: {data['error']}")
+		data, _ = cached_get("list", {"location_key": NYC_LOCATION_KEY, "offset": offset, "limit": page_size}, live=live)
 		page = data["result"]["list"]
 		if not page:
 			break
@@ -75,17 +85,17 @@ def fetch_hotel_list(n_hotels=60, page_size=30):
 	return hotels[:n_hotels]
 
 
-def fetch_rates(hotel_key, chk_in=CHK_IN, chk_out=CHK_OUT):
+def fetch_rates(hotel_key, chk_in=CHK_IN, chk_out=CHK_OUT, live=False):
 	"""
-	Return a list of {platform, rate, tax, retrieved_at} for one hotel. Empty list if none.
+	Return a list of {platform, rate, tax, retrieved_at, source} for one hotel. Empty list if none.
 	"""
-	data = cached_get("rates", {
+	data, source = cached_get("rates", {
 		"hotel_key": hotel_key,
 		"chk_in": chk_in,
 		"chk_out": chk_out,
 		"currency": "USD",
-	})
-	if data.get("error") or not data.get("result"):
+	}, live=live)
+	if not data.get("result"):
 		return []
 
 	ts = data.get("timestamp")
@@ -100,11 +110,12 @@ def fetch_rates(hotel_key, chk_in=CHK_IN, chk_out=CHK_OUT):
 			"rate": r["rate"],
 			"tax": r["tax"] or 0,
 			"retrieved_at": retrieved_at,
+			"source": source,
 		})
 	return rows
 
 
-def fetch_all_rates(hotels):
+def fetch_all_rates(hotels, chk_in=CHK_IN, chk_out=CHK_OUT, live=False):
 	"""
 	Fetch rates for every hotel. Skips failures instead of crashing.
 	Returns (long-format rate rows, list of (hotel_key, error) for failures).
@@ -114,7 +125,7 @@ def fetch_all_rates(hotels):
 
 	for i, h in enumerate(hotels, start=1):
 		try:
-			for r in fetch_rates(h["hotel_key"]):
+			for r in fetch_rates(h["hotel_key"], chk_in, chk_out, live=live):
 				r["hotel_key"] = h["hotel_key"]
 				all_rows.append(r)
 		except Exception as e:
@@ -152,7 +163,7 @@ def build_hotels_table(hotels, rate_rows, precincts, nights=NIGHTS):
 
 	# The cheapest site for each hotel
 	idx = rates_df.groupby("hotel_key")["nightly_with_tax"].idxmin()
-	cheapest = rates_df.loc[idx, ["hotel_key", "platform", "nightly_with_tax", "retrieved_at"]]
+	cheapest = rates_df.loc[idx, ["hotel_key", "platform", "nightly_with_tax", "retrieved_at", "source"]]
 	cheapest = cheapest.rename(columns={"platform": "cheapest_site",
 										"nightly_with_tax": "cheapest_nightly"})
 
@@ -160,6 +171,11 @@ def build_hotels_table(hotels, rate_rows, precincts, nights=NIGHTS):
 	df = df.merge(prices, left_on="hotel_key", right_index=True, how="left")
 	df["nights"] = nights
 	df["total_stay"] = df["cheapest_nightly"] * nights
+
+	# How old each price is, so cached prices can be labelled with their age
+	now = datetime.now(timezone.utc)
+	retrieved = pd.to_datetime(df["retrieved_at"], utc=True)
+	df["price_age_hours"] = ((now - retrieved).dt.total_seconds() / 3600).round(1)
 
 	df["precinct"] = pd.array(
 		[find_precinct(lat, lon, precincts) for lat, lon in zip(df["lat"], df["lon"])],
@@ -215,6 +231,44 @@ def find_nearby(df, hotel_key, radius_km=2.0):
 	return nearby[cols].reset_index(drop=True)
 
 
+def describe_sources(df):
+	"""One sentence saying where the prices came from, for the app to show the user."""
+	counts = df["source"].value_counts()
+	n_live = int(counts.get("live", 0))
+	n_cache = int(counts.get("cache", 0))
+	n_fallback = int(counts.get("cache_fallback", 0))
+
+	if n_fallback:
+		oldest = df.loc[df["source"] == "cache_fallback", "price_age_hours"].max()
+		return (f"The hotel price service did not respond for {n_fallback} of {len(df)} hotels, "
+				f"so their prices are cached and up to {oldest} hours old.")
+	if n_cache and not n_live:
+		oldest = df["price_age_hours"].max()
+		return f"Prices for all {len(df)} hotels are cached, up to {oldest} hours old."
+	if n_cache:
+		return f"Live prices for {n_live} hotels; cached prices for {n_cache}."
+	return f"Live prices for all {len(df)} hotels."
+
+
+def search_hotels(check_in, nights, max_price, n_hotels=20, live=True):
+	"""
+	Entry point for the app (Task 5). Returns (hotels table, sentence describing the price sources).
+	Raises RuntimeError if no prices are available at all (API down and nothing cached).
+	"""
+	chk_in = date.fromisoformat(check_in)
+	chk_out = chk_in + timedelta(days=nights)
+	precincts = load_precincts()
+
+	hotels = fetch_hotel_list(n_hotels, live=live)
+	rows, failed = fetch_all_rates(hotels, chk_in.isoformat(), chk_out.isoformat(), live=live)
+	if not rows:
+		raise RuntimeError("The hotel price service is unavailable and no cached prices exist for these dates.")
+
+	df = build_hotels_table(hotels, rows, precincts, nights=nights)
+	df = df[df["cheapest_nightly"] <= max_price].reset_index(drop=True)
+	return df, describe_sources(df)
+
+
 if __name__ == "__main__":
 	precincts = load_precincts()
 	hotels = fetch_hotel_list(60)
@@ -228,6 +282,7 @@ if __name__ == "__main__":
 	os.makedirs("outputs", exist_ok=True)
 	df.to_csv(os.path.join("outputs", "t4_hotels.csv"), index=False)
 	print("Saved outputs/t4_hotels.csv")
+	print(describe_sources(df))
 
 	# Cheapest options within budget
 	month = date.fromisoformat(CHK_IN).month
