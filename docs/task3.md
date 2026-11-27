@@ -17,7 +17,7 @@ Task 3 evaluates how accurately two Large Language Models (LLMs) estimate report
 ## Required Files
 
 **Input:**
-- `data/neighbourhood_month.parquet`
+- `data/processed/neighbourhood_month.parquet`
 
 **Implementation:**
 - `src/task3_llm_comparison.py`
@@ -93,7 +93,7 @@ API keys remain private (are not committed to GitHub).
 Place the processed Parquet file at:
 
 ```text
-data/neighbourhood_month.parquet
+data/processed/neighbourhood_month.parquet
 ```
 
 The dataset contains aggregated monthly NYPD incident counts by precinct for 2022–2024.
@@ -110,7 +110,7 @@ on the source end. The distinction cannot be determined from the parquet file al
 **Resolution:** Treat missing months as zero incidents (the conservative assumption). 
 This allows the analysis to proceed while making the assumption explicit:
 - Precinct 116 has 13 months with no data points (2022–2024); these are treated as 0 incidents each.
-- When running against `data/neighbourhood_month.parquet`, the code will raise the error and 
+- When running against `data/processed/neighbourhood_month.parquet`, the code will raise the error and 
   flag exactly which precinct/month combinations are missing, so the assumption can be reviewed.
 
 ## Running Task 3
