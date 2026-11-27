@@ -1,56 +1,35 @@
-# Person 3: Hotel Search (Task 4) and Best Month to Visit (Task 6)
+Task 4 code and the geo utilities are ready to integrate. Full docs: `docs/person3_tasks4_6.md` on the `person3-hotels-weather` branch.
 
-Owner: Sal (Salamot Fakoya)
-Branch: `person3-hotels-weather`
+## For Task 5 (app), Person 4
 
-## Status
+`search_hotels` is the entry point:
 
-- [x] Geo utilities (`src/geo_utils.py`): precinct boundaries, ray-casting, haversine
-- [ ] Task 4: Xotelo hotel list and rates, precinct assignment, nearby alternatives
-- [ ] Task 6: Monthly temperatures combined with incident trends
+    from src.task4_hotels import search_hotels, cheapest_options, find_nearby
 
-## Setup
+    df, message = search_hotels("2027-02-09", nights=3, max_price=200, n_hotels=20, live=True)
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
+- Returns `(DataFrame, message)`: hotels within budget, cheapest first, plus a sentence saying whether prices are live or cached (and how old). Show `message` to the user. The handout requires cached prices to be labelled with their age.
+- `live=True` calls Xotelo and falls back to the cache if it fails. `live=False` answers from the cache only. The TA demo runs a live search, then the same request from cache.
+- Raises `RuntimeError` if Xotelo is down and nothing is cached for those dates. Please catch it and show the message.
+- `cheapest_options(df, max_price, month)` gives the cheapest hotel and the cheapest outside that month's top-5 incident precincts.
+- `find_nearby(df, hotel_key)` gives every hotel within 2 km, cheapest first. Use it for "show me cheaper ones nearby."
+- Use ~20 hotels for live searches so the demo finishes in about a minute.
 
-## Geo utilities (`src/geo_utils.py`)
+## For Task 8, Person 2
 
-Used by Tasks 4, 5 and 8.
+    from src.geo_utils import load_precincts, find_precinct, haversine_km
 
-| Function | Input | Output |
-|---|---|---|
-| `load_precincts()` | none | dict of precinct number (int) to MultiPolygon coordinates |
-| `find_precinct(lat, lon, precincts)` | latitude, longitude, output of `load_precincts()` | precinct number (int), or `None` if outside NYC |
-| `haversine_km(lat1, lon1, lat2, lon2)` | two points | distance in km |
+- `find_precinct(lat, lon, load_precincts())` returns the precinct (int) for an attraction, or `None` if outside NYC.
+- `haversine_km(lat1, lon1, lat2, lon2)` gives the distance for "hotels within 1 km."
+- Hotel data: `outputs/t4_hotels.csv` (columns `lat`, `lon`, `precinct`, `cheapest_nightly`, `cheapest_site`, ...). The current file is a 60-hotel test run. I'll regenerate it with more hotels once we fix the months.
 
-Example:
+## Notes
 
-```python
-from src.geo_utils import load_precincts, find_precinct, haversine_km
+- Run modules from the project root with `python -m`, e.g. `python -m src.task4_hotels`, so `from src...` imports work.
+- Precinct numbers are ints everywhere, matching Person 1's parquet.
+- `get_top5_precincts(month)` is a temporary stand-in for Task 2's top-5 list. Person 1: if your Task 2 code returns a list of 5 ints for a month, I'll switch to it.
 
-precincts = load_precincts()
-find_precinct(40.7484, -73.9857, precincts)    # 14 (Empire State Building)
-haversine_km(40.7580, -73.9855, 40.7484, -73.9857)  # about 1.07
-```
+## Still needed from the team
 
-Notes:
-- Boundaries come from NYC Open Data dataset `y76i-bdw7`, saved to `data/precincts.geojson` (78 precincts).
-- Precinct numbers are ints, matching `precinct` in `neighbourhood_month.parquet`.
-- GeoJSON stores `[lon, lat]`, but `find_precinct` and `haversine_km` take lat first.
-
-## Validation
-
-| Test point | Expected | Result |
-|---|---|---|
-| Empire State Building (40.7484, -73.9857) | 14 | 14 |
-| Central Park (40.7812, -73.9665) | 22 | 22 |
-| Jersey City (40.7282, -74.0776) | None | None |
-
-## Data sources
-
-- NYC Police Precincts: https://data.cityofnewyork.us/resource/y76i-bdw7.geojson
-- Xotelo API (NYC location key `g60763`): https://data.xotelo.com/api
+- [ ] Our two months for Tasks 2 and 8 (my final hotel run uses stays in those months)
+- [ ] Task 2 top-5 output, to replace the stand-in
