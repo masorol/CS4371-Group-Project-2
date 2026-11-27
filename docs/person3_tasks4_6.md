@@ -11,7 +11,8 @@ Tested on Python 3.14.
 - [x] Task 4 test run for July and December (60 hotels)
 - [ ] Task 4 final run with about 800 hotels
 - [ ] Task 4: confirm the months with Persons 1 and 2, and swap in the official Task 2 top-5 list
-- [ ] Task 6: monthly temperatures combined with incident trends
+- [x] Task 6 (`src/task6_best_months.py`): monthly temperatures combined with incident rates, top 3 months, sensitivity check
+- [ ] Task 6: rerun on Person 1's final `neighbourhood_month.parquet` (currently uses the example file)
 
 ## Setup
 
@@ -146,7 +147,75 @@ Both are midweek, avoid holidays, and fall within Xotelo's roughly 11-month book
 - Number of hotels for the final run (planned: about 800).
 - Whether Xotelo supports a guests/adults parameter.
 
+## Task 6: Best month to visit (`src/task6_best_months.py`)
+
+```powershell
+python -m src.task6_best_months
+```
+
+Output: `outputs/t6_best_months.csv`, one row per month, best first.
+
+### Data
+
+- Temperatures: `data/city_temperature.csv` (from Homework 2 and 4). New York is spelled `"New York"`, with 1,827 daily rows for 2020 to 2024 and no `-99` values (the code still drops them as a safeguard). Temperatures are in °F.
+- Incidents: `data/neighbourhood_month_example.parquet` (Task 1). Switch `INCIDENTS_PATH` to Person 1's final `neighbourhood_month.parquet` when it exists.
+
+### Columns
+
+| Column | Meaning |
+|---|---|
+| `month_name` | Month |
+| `avg_temp_f` | Average daily temperature, 2020 to 2024 |
+| `distance_from_70f` | Degrees away from a comfortable 70°F, hotter or colder |
+| `avg_monthly_incidents` | City-wide incidents in that month, averaged over 2022 to 2024 |
+| `avg_incidents_per_day` | The same, divided by the days in each month (February 2024 counted as 29 days) |
+| `comfort_score`, `safety_score` | Both measures scaled to 0 to 1, where 1 is best |
+| `score`, `rank` | Combined score and rank |
+
+### Scoring rule
+
+1. **Comfort.** Min-max scale `distance_from_70f` to 0 to 1 and flip it, so the month closest to 70°F scores 1 and the furthest scores 0.
+2. **Safety.** Min-max scale `avg_incidents_per_day` the same way, so the month with the lowest incident rate scores 1.
+3. **Score** = 0.6 × comfort + 0.4 × safety.
+
+Why these choices:
+- Incidents are compared **per day**, not as monthly totals. February has about 10% fewer days than a 31-day month, so its raw total looks lower even when the daily rate is not. In this data February has the lowest monthly total (40,430) but January has the lowest daily rate (1,402 versus 1,426).
+- Both measures are **scaled to 0 to 1** before weighting, because degrees and incident counts are on very different scales.
+- **Comfort gets more weight** because weather affects every day of a trip, while the city-wide incident rate varies only about 15% across the year (1,402 to 1,611 per day).
+
+### Results
+
+| Rank | Month | Avg temp | From 70°F | Incidents per day | Score |
+|---|---|---|---|---|---|
+| 1 | September | 69.4°F | 0.6 | 1,556 | 0.704 |
+| 2 | June | 70.4°F | 0.4 | 1,611 | 0.600 |
+| 3 | August | 75.8°F | 5.8 | 1,567 | 0.588 |
+| 4 | April | 51.3°F | 18.7 | 1,475 | 0.531 |
+| 5 | May | 60.4°F | 9.6 | 1,561 | 0.529 |
+| ... | | | | | |
+| 12 | February | 37.1°F | 32.9 | 1,426 | 0.366 |
+
+**Recommendation: September, June and August.**
+
+### Sensitivity check
+
+| Weights (comfort / safety) | Top 3 |
+|---|---|
+| 60 / 40 (chosen) | September, June, August |
+| 70 / 30 | September, June, August |
+| 50 / 50 | September, April, August |
+
+September and August stay in the top 3 under every weighting. June depends on the weights: it has the best weather but the highest incident rate of any month (safety score 0), so it drops out when safety counts as much as comfort, and April takes its place.
+
+### Limitations
+
+- Min-max scaling stretches small differences. Incident rates vary about 15% across the year, but scaling gives them the same 0-to-1 spread as a 33-degree temperature range, so it exaggerates how different the months are on safety.
+- Distance from 70°F treats too hot and too cold the same, and ignores humidity, rain and snow.
+- City-wide incident rates say little about the precinct a visitor actually stays in. Task 2 and Task 4 handle neighbourhood-level risk.
+- The incident figures come from the example parquet until Person 1's final file is in place.
+
 ## Data sources
 
 - NYC Police Precincts (NYC Open Data `y76i-bdw7`): https://data.cityofnewyork.us/resource/y76i-bdw7.geojson
 - Xotelo API (NYC location key `g60763`, no key required): https://data.xotelo.com/api
+- City temperatures: `city_temperature.csv`, provided with Homework 2 and Homework 4
