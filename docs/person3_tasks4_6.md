@@ -84,7 +84,8 @@ print(message)   # e.g. "Live prices for all 18 hotels."
 | `cheapest_options(df, max_price, month)` | `(cheapest hotel within budget, cheapest within budget outside that month's top-5 incident precincts)`. Either can be `None`. |
 | `find_nearby(df, hotel_key, radius_km=2.0)` | Every other hotel within 2 km of the chosen hotel, cheapest first, with distance, precinct and savings. |
 | `describe_sources(df)` | One sentence describing where the prices came from and how old they are. |
-| `get_top5_precincts(month)` | **Temporary** stand-in for Person 1's Task 2 top-5 list, computed from the example parquet. To be replaced by Task 2's official output. |
+| `get_top5_precincts(month)` | **Temporary** stand-in for Person 1's Task 2 top-5 list, computed from `data/neighbourhood_month.parquet` (Task 1's real output). To be replaced by Task 2's official output. |
+| `get_precinct_month_avg(month)` | **Temporary** stand-in for Task 2's per-precinct monthly averages (every precinct, not just the top 5). Used by Task 8 to rate each attraction's area. Returns a `pandas.Series` indexed by precinct. |
 
 ### Stay dates
 

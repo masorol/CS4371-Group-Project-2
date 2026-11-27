@@ -12,7 +12,7 @@ from src.geo_utils import load_precincts, find_precinct, haversine_km
 CACHE_DIR = os.path.join("cache", "xotelo")
 BASE_URL = "https://data.xotelo.com/api"
 NYC_LOCATION_KEY = "g60763"
-INCIDENTS_PATH = os.path.join("data", "neighbourhood_month_example.parquet")
+INCIDENTS_PATH = os.path.join("data", "neighbourhood_month.parquet")
 
 # One stay per Task 2 / Task 8 month: Tuesday to Friday, 3 nights, no holidays
 STAYS = {
@@ -148,10 +148,20 @@ def get_top5_precincts(month, path=INCIDENTS_PATH):
 	TEMPORARY stand-in for Person 1's Task 2 output.
 	Top 5 precincts by average incidents in the given month (1-12), 2022-2024.
 	"""
+	avg = get_precinct_month_avg(month, path)
+	return [int(p) for p in avg.nlargest(5).index]
+
+
+def get_precinct_month_avg(month, path=INCIDENTS_PATH):
+	"""
+	TEMPORARY stand-in for Person 1's Task 2 output.
+	Average incidents in the given month (1-12), 2022-2024, for every precinct
+	(not just the top 5). Used by Task 8 to give each attraction's precinct an
+	incident level. Returns a pandas Series indexed by precinct (int).
+	"""
 	df = pd.read_parquet(path)
 	monthly = df[df["month"] == month]
-	avg = monthly.groupby("precinct")["total_incidents"].mean()
-	return [int(p) for p in avg.nlargest(5).index]
+	return monthly.groupby("precinct")["total_incidents"].mean()
 
 
 def build_hotels_table(hotels, rate_rows, precincts, nights=NIGHTS):
