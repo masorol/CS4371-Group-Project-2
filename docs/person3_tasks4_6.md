@@ -9,7 +9,7 @@ Tested on Python 3.14.
 - [x] Geo utilities (`src/geo_utils.py`): precinct boundaries, ray-casting, haversine (merged into `main`)
 - [x] Task 4 code (`src/task4_hotels.py`): hotel list, rates by site, cheapest options, precinct assignment, nearby alternatives, live calls with labelled cache fallback
 - [x] Task 4 test run for July and December (60 hotels)
-- [ ] Task 4 final run with about 800 hotels
+- [x] Task 4 final run with 800 hotels for July and December (outputs and Xotelo cache committed)
 - [ ] Task 4: confirm the months with Persons 1 and 2, and swap in the official Task 2 top-5 list
 - [x] Task 6 (`src/task6_best_months.py`): monthly temperatures combined with incident rates, top 3 months, sensitivity check
 - [ ] Task 6: rerun on Person 1's final `neighbourhood_month.parquet` (currently uses the example file)
@@ -82,7 +82,7 @@ print(message)   # e.g. "Live prices for all 18 hotels."
 
 | Function | Purpose |
 |---|---|
-| `cheapest_options(df, max_price, month)` | `(cheapest hotel within budget, cheapest within budget outside that month's top-5 incident precincts)`. Either can be `None`. |
+| `cheapest_options(df, max_price, month, include_hostels=True)` | `(cheapest hotel within budget, cheapest within budget outside that month's top-5 incident precincts)`. Either can be `None`. Pass `include_hostels=False` to skip hostels. |
 | `find_nearby(df, hotel_key, radius_km=2.0)` | Every other hotel within 2 km of the chosen hotel, cheapest first, with distance, precinct and savings. |
 | `describe_sources(df)` | One sentence describing where the prices came from and how old they are. |
 | `get_top5_precincts(month)` | **Temporary** stand-in for Person 1's Task 2 top-5 list, computed from the example parquet. To be replaced by Task 2's official output. |
@@ -115,6 +115,7 @@ Both are midweek, avoid holidays, and fall within Xotelo's roughly 11-month book
 | `retrieved_at` | When Xotelo produced the price (UTC) |
 | `source` | `live`, `cache` or `cache_fallback` |
 | `price_age_hours` | Hours since `retrieved_at` |
+| `is_hostel` | True if `type` is `Hostel` or the name contains "hostel" (some hostels are labelled `Hotel`) |
 
 ### Nearby table columns (`t4_nearby.csv`)
 
@@ -126,9 +127,10 @@ Both are midweek, avoid holidays, and fall within Xotelo's roughly 11-month book
 
 - Every Xotelo response is saved under `cache/xotelo/`, one JSON file per request.
 - Error responses are never cached.
-- The batch run (`python -m src.task4_hotels`) uses `live=False`, so it only fetches what is missing.
+- The batch run (`python -m src.task4_hotels`) uses `live=False`, so it only fetches what is missing. A run that is interrupted or rate-limited can simply be rerun.
+- The committed cache (`cache/xotelo/`, about 1,700 files, 0.7 MB) covers both batch stays, so the outputs can be rebuilt without calling Xotelo.
 
-### Validation so far
+### Test runs (60 hotels)
 
 60-hotel test runs. The first checks used placeholder dates (Jan 15 to 18, 2027). The July and December results come from the stays above.
 
@@ -141,10 +143,36 @@ Both are midweek, avoid holidays, and fall within Xotelo's roughly 11-month book
 - Nearby (January): ROW NYC (Midtown) has 45 hotels within 2 km, while The FIDI Hotel has 2. July: 45 and 2. December: 41 and 1. The default Xotelo ranking clusters heavily in Midtown, which is why the final run will use more hotels.
 - Fallback check: a live search, then the same search with `BASE_URL` pointed at an invalid host, returned cached prices with the message "The hotel price service did not respond for 4 of 4 hotels, so their prices are cached and up to 0.0 hours old."
 
+### Final run (800 hotels, July and December)
+
+| | July (Jul 13-16, 2027) | December (Dec 8-11, 2026) |
+|---|---|---|
+| Hotels fetched (with coordinates) | 800 | 800 |
+| With prices for the stay | 397 | 325 |
+| Outside NYC precincts | 1 | 2 |
+| Failed requests | 0 | 0 (after one retry run) |
+| Precincts covered (of 78) | 28 | 28 |
+| Cheapest under $150 | Kama Central Park Hostel (precinct 24), $70 | HI New York City Hostel (precinct 24), $76 |
+| Cheapest non-hostel under $150 | New York Spirit Retreats (precinct 10), $93 | Days Inn by Wyndham Staten Island (precinct 121), $87 |
+| Hotels within 2 km of ROW NYC | 259 (8 cheaper) | 202 (16 cheaper) |
+| Hotels within 2 km of The FIDI Hotel | 49 (21 cheaper) | 46 (9 cheaper) |
+
+Cleaning and data notes:
+- 4 hotels in the Xotelo list had no coordinates and were skipped (the list is paged until 800 hotels with coordinates are collected). Duplicate hotel keys across pages are also skipped.
+- About half the hotels have no prices for a given stay. Xotelo returns a valid response with no rates for them, usually smaller or less-booked listings further down its ranking.
+- During the first December pass, Xotelo stopped answering after about 1,300 requests in one session: every request from hotel 600 onward failed. Failed responses are never cached, so a rerun the next morning retried only those hotels. One "connection refused" error remained, and it succeeded on a further rerun. Most retried hotels turned out to have no prices for the stay.
+- Prices change quickly. The West Side YMCA showed $121 a night for the December stay in the batch run and $99 in a live check the next morning, which is why `retrieved_at` is recorded.
+
+Findings for the report:
+- **Hotels cover only 28 of 78 precincts**, concentrated in Manhattan, even with 800 hotels. This is where hotels actually are, not a sampling problem, and it limits any hotel-based neighbourhood recommendation (Task 8).
+- **The 60-hotel sample was misleading.** It made downtown look empty (2 hotels within 2 km of The FIDI Hotel versus 49 with 800) and picked the West Side YMCA as the cheapest option, which a larger sample overturned.
+- **The cheapest options are hostels**, whose prices may be for a bed in a shared dorm. The `is_hostel` flag and `include_hostels=False` give the cheapest private-room alternative.
+- **Price alone ignores location.** December's cheapest non-hostel is on Staten Island, far from most attractions.
+- 9 of the hotels are hostels by type or name; accommodation types also include small hotels, limited-service properties, condominiums, guest houses, resorts, a lodge and a motel.
+
 ### Open decisions
 
 - Months: using July and December until Persons 1 and 2 confirm. If they change, only `STAYS` needs editing.
-- Number of hotels for the final run (planned: about 800).
 - Whether Xotelo supports a guests/adults parameter.
 
 ## Task 6: Best month to visit (`src/task6_best_months.py`)
