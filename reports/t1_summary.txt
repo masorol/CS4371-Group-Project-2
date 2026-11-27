@@ -1,0 +1,148 @@
+SAFESTAY TASK 1 - DATA SUMMARY
+============================================================
+
+SOURCE DATA
+NYC Open Data - NYPD Complaint Data Historic
+Dataset ID: qgea-i56i
+Downloaded API staging file: /app/data/raw/nypd_complaints_2022_2024_with_coordinates.jsonl
+Raw, uncleaned Parquet: /app/data/raw/nypd_complaints_2022_2024.parquet
+
+CLEANING RESULTS (SEQUENTIAL COUNTS)
+Starting records: 2,531,274
+Missing complaint IDs removed: 0
+Rows after missing-ID removal: 2,531,274
+Duplicate reports removed: 871,638
+Rows after deduplication: 1,659,636
+Missing/unparseable dates removed: 655
+Rows after date removal: 1,658,981
+Missing/invalid precincts removed: 94
+Rows after precinct validation: 1,658,887
+Missing/invalid coordinates removed: 13
+Rows after coordinate validation: 1,658,874
+Outside NYC removed: 2,981
+Rows after NYC filter: 1,655,893
+Outside date range removed: 0
+Final valid incidents: 1,655,893
+
+COORDINATE AND CITY VALIDATION
+Coordinates were cast to numeric latitude/longitude values.
+Rows with null, non-finite, or globally out-of-range coordinates were removed.
+City membership required a recognized NYC borough and coordinates within
+the broad NYC coordinate envelope (latitude 40.4774–40.9176, longitude
+-74.2591–-73.7004). The borough field is the primary city-membership check.
+Recognized boroughs: Bronx, Brooklyn, Manhattan, Queens, Staten Island.
+
+DATE COVERAGE
+The API query includes 2022-2024 dated records plus undated rows so
+Spark can explicitly count and remove rows with missing dates.
+First occurrence date: 2022-01-01
+Last occurrence date: 2024-12-31
+Requested date range: 2022-01-01 through 2024-12-31
+
+GEOGRAPHIC COVERAGE
+Number of precincts: 78
+Geographic unit: NYPD precinct (addr_pct_cd), as approved for this project.
+
+OFFENSE CATEGORY COUNTS
+Crimes against persons: 598,974
+Crimes against property: 780,603
+Other: 276,316
+
+OFFENSE CLASSIFICATION MAPPING
+The source dataset does not provide a direct person/property/other field.
+Each observed ofns_desc value was explicitly assigned to one category.
+NULL, (NULL), and empty offense descriptions are assigned to other.
+
+Crimes against persons:
+  - HARRASSMENT 2
+  - ASSAULT 3 & RELATED OFFENSES
+  - FELONY ASSAULT
+  - ROBBERY
+  - SEX CRIMES
+  - OFFENSES AGAINST THE PERSON
+  - RAPE
+  - MURDER & NON-NEGL. MANSLAUGHTER
+  - KIDNAPPING & RELATED OFFENSES
+  - KIDNAPPING
+  - FELONY SEX CRIMES
+  - HOMICIDE-NEGLIGENT,UNCLASSIFIE
+  - HOMICIDE-NEGLIGENT-VEHICLE
+  - CHILD ABANDONMENT/NON SUPPORT
+  - CHILD ABANDONMENT/NON SUPPORT 1
+  - OFFENSES RELATED TO CHILDREN
+  - ENDAN WELFARE INCOMP
+
+Crimes against property:
+  - PETIT LARCENY
+  - GRAND LARCENY
+  - CRIMINAL MISCHIEF & RELATED OF
+  - GRAND LARCENY OF MOTOR VEHICLE
+  - BURGLARY
+  - FORGERY
+  - OTHER OFFENSES RELATED TO THEFT
+  - THEFT-FRAUD
+  - OFFENSES INVOLVING FRAUD
+  - FRAUDS
+  - POSSESSION OF STOLEN PROPERTY
+  - UNAUTHORIZED USE OF A VEHICLE
+  - OTHER OFFENSES RELATED TO THEF
+  - ARSON
+  - BURGLAR'S TOOLS
+  - PETIT LARCENY OF MOTOR VEHICLE
+  - THEFT OF SERVICES
+  - JOSTLING
+  - FRAUDULENT ACCOSTING
+  - CRIMINAL TRESPASS
+
+Other:
+  - VEHICLE AND TRAFFIC LAWS
+  - OFF. AGNST PUB ORD SENSBLTY &
+  - MISCELLANEOUS PENAL LAW
+  - DANGEROUS DRUGS
+  - DANGEROUS WEAPONS
+  - OFFENSES AGAINST PUBLIC ADMINI
+  - INTOXICATED & IMPAIRED DRIVING
+  - ADMINISTRATIVE CODE
+  - OTHER STATE LAWS
+  - NYS LAWS-UNCLASSIFIED FELONY
+  - OTHER STATE LAWS (NON PENAL LA
+  - OTHER STATE LAWS (NON PENAL LAW)
+  - CANNABIS RELATED OFFENSES
+  - GAMBLING
+  - PROSTITUTION & RELATED OFFENSES
+  - OFFENSES AGAINST PUBLIC SAFETY
+  - DISORDERLY CONDUCT
+  - AGRICULTURE & MRKTS LAW-UNCLASSIFIED
+  - ALCOHOLIC BEVERAGE CONTROL LAW
+  - ESCAPE 3
+  - UNLAWFUL POSS. WEAP. ON SCHOOL
+  - ANTICIPATORY OFFENSES
+  - INTOXICATED/IMPAIRED DRIVING
+  - NEW YORK CITY HEALTH CODE
+  - NYS LAWS-UNCLASSIFIED VIOLATION
+  - LOITERING/GAMBLING (CARDS, DIC
+  - DISRUPTION OF A RELIGIOUS SERV
+  - OTHER TRAFFIC INFRACTION
+  - FORTUNE TELLING
+  - LOITERING
+
+MONTHLY AGGREGATION
+One row per precinct, year, and month with at least one reported incident.
+Includes total incidents, incidents in each category, and the three most
+frequent individual ofns_desc values with counts.
+Ties in offense counts are broken alphabetically by offense description.
+
+OUTPUT COLUMNS
+precinct, year, month, total_incidents, crimes_against_persons,
+crimes_against_property, other, top_1_offense, top_1_offense_count,
+top_2_offense, top_2_offense_count, top_3_offense, top_3_offense_count
+
+OUTPUT
+Rows in output: 2,795
+Monthly summary Parquet: /app/data/processed/neighbourhood_month.parquet
+Raw Parquet: /app/data/raw/nypd_complaints_2022_2024.parquet
+
+NOTE
+The pipeline uses NYPD precincts as the geographic unit, as approved
+for this project. Offense categories are an analytical mapping created
+for this assignment, not official NYPD category labels.
