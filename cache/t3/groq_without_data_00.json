@@ -1,0 +1,10 @@
+{
+  "provider": "groq",
+  "model": "openai/gpt-oss-120b",
+  "condition": "without_data",
+  "batch": 0,
+  "retrieved_at_utc": "2026-11-27T02:22:28.935490+00:00",
+  "prompt_sha256": "e6d53820ef34712cd0bce711fc0d846290f32d82cd71620ccf55f2a31e9c1944",
+  "prompt": "You are evaluating reported NYPD complaints, NOT individual visitor safety. For EACH supplied NYC police precinct, assign an integer rating from 1 to 5, where 1 means fewest reported incidents and 5 means most, relative to NYC precincts. Also estimate its average reported incidents per month. Return JSON ONLY in this format: {\"predictions\":[{\"precinct\":\"1\",\"rating\":3,\"estimated_monthly_incidents\":100.0}]}. Include every precinct exactly once. Do not invent additional precincts. No incident counts are provided. Estimate only from your prior knowledge. Do not claim these estimates are verified.\nINPUT DATA:\n[{\"precinct\": \"1\"}, {\"precinct\": \"10\"}, {\"precinct\": \"100\"}, {\"precinct\": \"101\"}, {\"precinct\": \"102\"}, {\"precinct\": \"103\"}, {\"precinct\": \"104\"}, {\"precinct\": \"105\"}, {\"precinct\": \"106\"}, {\"precinct\": \"107\"}, {\"precinct\": \"108\"}, {\"precinct\": \"109\"}]",
+  "raw_response": "{\"predictions\":[{\"precinct\":\"1\",\"rating\":4,\"estimated_monthly_incidents\":180.0},{\"precinct\":\"10\",\"rating\":3,\"estimated_monthly_incidents\":120.0},{\"precinct\":\"100\",\"rating\":5,\"estimated_monthly_incidents\":250.0},{\"precinct\":\"101\",\"rating\":5,\"estimated_monthly_incidents\":240.0},{\"precinct\":\"102\",\"rating\":5,\"estimated_monthly_incidents\":260.0},{\"precinct\":\"103\",\"rating\":5,\"estimated_monthly_incidents\":230.0},{\"precinct\":\"104\",\"rating\":5,\"estimated_monthly_incidents\":220.0},{\"precinct\":\"105\",\"rating\":5,\"estimated_monthly_incidents\":210.0},{\"precinct\":\"106\",\"rating\":5,\"estimated_monthly_incidents\":200.0},{\"precinct\":\"107\",\"rating\":5,\"estimated_monthly_incidents\":190.0},{\"precinct\":\"108\",\"rating\":5,\"estimated_monthly_incidents\":180.0},{\"precinct\":\"109\",\"rating\":5,\"estimated_monthly_incidents\":170.0}]}"
+}

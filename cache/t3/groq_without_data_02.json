@@ -1,0 +1,10 @@
+{
+  "provider": "groq",
+  "model": "openai/gpt-oss-120b",
+  "condition": "without_data",
+  "batch": 2,
+  "retrieved_at_utc": "2026-11-27T02:22:33.388157+00:00",
+  "prompt_sha256": "b7f437116d274359eb4d91a6066d0ce1d64059a44ad67db4ff1b6791f81e2e4a",
+  "prompt": "You are evaluating reported NYPD complaints, NOT individual visitor safety. For EACH supplied NYC police precinct, assign an integer rating from 1 to 5, where 1 means fewest reported incidents and 5 means most, relative to NYC precincts. Also estimate its average reported incidents per month. Return JSON ONLY in this format: {\"predictions\":[{\"precinct\":\"1\",\"rating\":3,\"estimated_monthly_incidents\":100.0}]}. Include every precinct exactly once. Do not invent additional precincts. No incident counts are provided. Estimate only from your prior knowledge. Do not claim these estimates are verified.\nINPUT DATA:\n[{\"precinct\": \"14\"}, {\"precinct\": \"17\"}, {\"precinct\": \"18\"}, {\"precinct\": \"19\"}, {\"precinct\": \"20\"}, {\"precinct\": \"22\"}, {\"precinct\": \"23\"}, {\"precinct\": \"24\"}, {\"precinct\": \"25\"}, {\"precinct\": \"26\"}, {\"precinct\": \"28\"}, {\"precinct\": \"30\"}]",
+  "raw_response": "{\"predictions\":[{\"precinct\":\"14\",\"rating\":5,\"estimated_monthly_incidents\":250.0},{\"precinct\":\"17\",\"rating\":4,\"estimated_monthly_incidents\":180.0},{\"precinct\":\"18\",\"rating\":4,\"estimated_monthly_incidents\":170.0},{\"precinct\":\"19\",\"rating\":5,\"estimated_monthly_incidents\":240.0},{\"precinct\":\"20\",\"rating\":4,\"estimated_monthly_incidents\":160.0},{\"precinct\":\"22\",\"rating\":5,\"estimated_monthly_incidents\":260.0},{\"precinct\":\"23\",\"rating\":4,\"estimated_monthly_incidents\":190.0},{\"precinct\":\"24\",\"rating\":4,\"estimated_monthly_incidents\":180.0},{\"precinct\":\"25\",\"rating\":3,\"estimated_monthly_incidents\":130.0},{\"precinct\":\"26\",\"rating\":3,\"estimated_monthly_incidents\":120.0},{\"precinct\":\"28\",\"rating\":3,\"estimated_monthly_incidents\":110.0},{\"precinct\":\"30\",\"rating\":2,\"estimated_monthly_incidents\":90.0}]}"
+}
