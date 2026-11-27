@@ -101,16 +101,21 @@ def fetch_hotel_list(n_hotels=60, page_size=30, live=False):
 	return hotels[:n_hotels]
 
 
-def fetch_rates(hotel_key, chk_in=CHK_IN, chk_out=CHK_OUT, live=False):
+def fetch_rates(hotel_key, chk_in=CHK_IN, chk_out=CHK_OUT, live=False, adults=None):
 	"""
 	Return a list of {platform, rate, tax, retrieved_at, source} for one hotel. Empty list if none.
+	adults=None leaves the guest count to Xotelo's default (matches the batch cache).
 	"""
-	data, source = cached_get("rates", {
+	params = {
 		"hotel_key": hotel_key,
-		"chk_in": chk_in,
-		"chk_out": chk_out,
+		"chk_in":chk_in,
+		"chk_out":chk_out,
 		"currency": "USD",
-	}, live=live)
+	}
+	if adults is not None:
+		params["adults"] = adults
+	data, source = cached_get("rates", params, live=live)
+	
 	if not data.get("result"):
 		return []
 
@@ -131,7 +136,7 @@ def fetch_rates(hotel_key, chk_in=CHK_IN, chk_out=CHK_OUT, live=False):
 	return rows
 
 
-def fetch_all_rates(hotels, chk_in=CHK_IN, chk_out=CHK_OUT, live=False):
+def fetch_all_rates(hotels, chk_in=CHK_IN, chk_out=CHK_OUT, live=False, adults=None):
 	"""
 	Fetch rates for every hotel. Skips failures instead of crashing.
 	Returns (long-format rate rows, list of (hotel_key, error) for failures).
@@ -141,7 +146,7 @@ def fetch_all_rates(hotels, chk_in=CHK_IN, chk_out=CHK_OUT, live=False):
 
 	for i, h in enumerate(hotels, start=1):
 		try:
-			for r in fetch_rates(h["hotel_key"], chk_in, chk_out, live=live):
+			for r in fetch_rates(h["hotel_key"], chk_in, chk_out, live=live, adults=adults):
 				r["hotel_key"] = h["hotel_key"]
 				all_rows.append(r)
 		except Exception as e:
@@ -272,7 +277,7 @@ def describe_sources(df):
 	return f"Live prices for all {len(df)} hotels."
 
 
-def search_hotels(check_in, nights, max_price, n_hotels=20, live=True):
+def search_hotels(check_in, nights, max_price, guests=1, n_hotels=20, live=True):
 	"""
 	Entry point for the app (Task 5). Returns (hotels table, sentence describing the price sources).
 	Raises RuntimeError if no prices are available at all (API down and nothing cached).
@@ -282,7 +287,7 @@ def search_hotels(check_in, nights, max_price, n_hotels=20, live=True):
 	precincts = load_precincts()
 
 	hotels = fetch_hotel_list(n_hotels, live=live)
-	rows, failed = fetch_all_rates(hotels, chk_in.isoformat(), chk_out.isoformat(), live=live)
+	rows, failed = fetch_all_rates(hotels, chk_in.isoformat(), chk_out.isoformat(), live=live, adults=guests)
 	if not rows:
 		raise RuntimeError("The hotel price service is unavailable and no cached prices exist for these dates.")
 
