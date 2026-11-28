@@ -1,6 +1,7 @@
 import json
 import os
 import time
+import zipfile
 from datetime import date, datetime, timedelta, timezone
 
 import pandas as pd
@@ -12,7 +13,7 @@ N_HOTELS = 800
 CACHE_DIR = os.path.join("cache", "xotelo")
 BASE_URL = "https://data.xotelo.com/api"
 NYC_LOCATION_KEY = "g60763"
-INCIDENTS_PATH = os.path.join("data", "neighbourhood_month_example.parquet")
+INCIDENTS_PATH = os.path.join("data", "processed", "neighbourhood_month.parquet")
 
 # One stay per Task 2 / Task 8 month: Tuesday to Friday, 3 nights, no holidays
 STAYS = {
@@ -163,10 +164,33 @@ def get_top5_precincts(month, path=INCIDENTS_PATH):
 	TEMPORARY stand-in for Person 1's Task 2 output.
 	Top 5 precincts by average incidents in the given month (1-12), 2022-2024.
 	"""
+	avg = get_precinct_month_avg(month, path)
+	return [int(p) for p in avg.nlargest(5).index]
+
+
+def get_precinct_month_avg(month, path=INCIDENTS_PATH):
+	"""
+	TEMPORARY stand-in for Person 1's Task 2 output.
+	Average incidents in the given month (1-12), 2022-2024, for every precinct
+	(not just the top 5). Used by Task 8 to give each attraction's precinct an
+	incident level. Returns a pandas Series indexed by precinct (int).
+	"""
+	if not os.path.exists(path):
+		zip_path = path + ".zip"
+		if os.path.exists(zip_path):
+			# Task 1's output is committed zipped (data/processed/ is gitignored
+			# otherwise); extract it the first time it's needed.
+			with zipfile.ZipFile(zip_path) as zf:
+				zf.extractall(os.path.dirname(path))
+		else:
+			raise FileNotFoundError(
+				f"{path} not found (and no {zip_path} to extract it from). "
+				f"Make sure Task 1's output is present under data/processed/."
+			)
+
 	df = pd.read_parquet(path)
 	monthly = df[df["month"] == month]
-	avg = monthly.groupby("precinct")["total_incidents"].mean()
-	return [int(p) for p in avg.nlargest(5).index]
+	return monthly.groupby("precinct")["total_incidents"].mean()
 
 
 def build_hotels_table(hotels, rate_rows, precincts, nights=NIGHTS):
