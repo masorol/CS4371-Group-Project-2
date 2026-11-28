@@ -3,6 +3,7 @@ import argparse
 import json
 import os
 import time
+import shutil
 
 import requests
 
@@ -11,6 +12,7 @@ from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from datetime import datetime, timezone
 
 
 # 1. PROJECT CONFIGURATION
@@ -186,6 +188,14 @@ def download_data(output_file, sample_limit=None):
         downloaded = 0
         file_mode = "w"
 
+    manifest_file = output_file.with_suffix(".manifest.jsonl")
+    if resume and not manifest_file.exists():
+        mtime = datetime.fromtimestamp(output_file.stat().st_mtime, timezone.utc).isoformat()
+        manifest_file.write_text(json.dumps({
+            "note": "backfilled for pages downloaded before manifest logging",
+            "rows_in_file": downloaded,
+            "file_last_modified_utc": mtime}) + "\n")
+
     offset = downloaded
 
     print("\nStarting NYC Open Data download...")
@@ -232,6 +242,12 @@ def download_data(output_file, sample_limit=None):
             for record in records:
                 file.write(json.dumps(record) + "\n")
 
+            with manifest_file.open("a", encoding="utf-8") as m:
+                m.write(json.dumps({
+                    "offset": offset, "limit": current_limit, "rows": len(records),
+                    "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
+                    "url": API_URL}) + "\n")
+    
             file.flush()
 
             batch_count = len(records)
@@ -243,7 +259,7 @@ def download_data(output_file, sample_limit=None):
                 f"(latest batch: {batch_count:,}; next offset: {offset:,})"
             )
 
-            time.sleep(0.5)
+            time.sleep(1.0)
 
     print(f"\nDownload complete: {downloaded:,} records")
     print(f"Saved to: {output_file}")
@@ -695,7 +711,12 @@ def save_outputs(
     report_path.parent.mkdir(parents=True, exist_ok=True)
 
     print(f"\nWriting Parquet to: {output_path}")
-    monthly.write.mode("overwrite").parquet(str(output_path))
+    
+    if output_path.is_dir():
+        shutil.rmtree(output_path)
+    elif output_path.exists():
+        output_path.unlink()
+    monthly.toPandas().to_parquet(output_path, index=False)
 
     date_range = classified.agg(
         F.min("incident_date").alias("min_date"),
@@ -709,6 +730,15 @@ def save_outputs(
     }
     c = cleaning_counts
 
+    manifest_path = Path(c["raw_jsonl_path"]).with_suffix(".manifest.jsonl")
+    retrieval_note = "not recorded"
+    if manifest_path.exists():
+        entries = [json.loads(l) for l in manifest_path.read_text().splitlines() if l.strip()]
+        stamps = [e.get("retrieved_at_utc") or e.get("file_last_modified_utc") for e in entries]
+        stamps = [s for s in stamps if s]
+        if stamps:
+            retrieval_note = f"{min(stamps)} to {max(stamps)}"
+
     report_lines = [
         "SAFESTAY TASK 1 - DATA SUMMARY",
         "=" * 60,
@@ -716,6 +746,8 @@ def save_outputs(
         "SOURCE DATA",
         "NYC Open Data - NYPD Complaint Data Historic",
         "Dataset ID: qgea-i56i",
+        f"Data retrieved (UTC): {retrieval_note}",
+        "Page-level retrieval log: " + str(manifest_path),
         "Downloaded API staging file: " + c["raw_jsonl_path"],
         "Raw, uncleaned Parquet: " + c["raw_parquet_path"],
         "",
@@ -752,7 +784,7 @@ def save_outputs(
         "Requested date range: 2022-01-01 through 2024-12-31",
         "",
         "GEOGRAPHIC COVERAGE",
-        f"Number of precincts: {number_of_precincts}",
+        f"Number of neighbourhoods (NYPD precincts): {number_of_precincts}",
         "Geographic unit: NYPD precinct (addr_pct_cd), as approved for this project.",
         "",
         "OFFENSE CATEGORY COUNTS",
