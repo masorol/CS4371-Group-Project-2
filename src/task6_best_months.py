@@ -3,8 +3,9 @@ import os
 
 import pandas as pd
 
+from src.incidents import load_incidents
+
 TEMPS_PATH = os.path.join("data", "city_temperature.csv")
-INCIDENTS_PATH = os.path.join("data", "neighbourhood_month_example.parquet")
 IDEAL_TEMP_F = 70
 WEIGHTS = {"comfort":0.6, "incidents":0.4}
 
@@ -22,11 +23,11 @@ def monthly_temperatures(path=TEMPS_PATH, city="New York"):
 	return out
 
 
-def monthly_incidents(path=INCIDENTS_PATH):
+def monthly_incidents():
 	"""
 	City-wide incidents per month: the average monthly total over 2022-2024,
 	and the average per day (so short months like February are not favoured)."""
-	df = pd.read_parquet(path)
+	df = load_incidents(exclude=())
 	totals = df.groupby(["year", "month"])["total_incidents"].sum().reset_index()
 	totals["days"] = [calendar.monthrange(y, m)[1] for y, m in zip(totals["year"], totals["month"])]
 	totals["per_day"] = totals["total_incidents"] / totals["days"]
