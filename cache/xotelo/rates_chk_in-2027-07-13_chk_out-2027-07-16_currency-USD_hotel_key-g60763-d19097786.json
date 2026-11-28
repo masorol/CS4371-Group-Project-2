@@ -1,0 +1,1 @@
+{"error": null, "result": {"chk_in": "2027-07-13", "chk_out": "2027-07-16", "currency": "USD", "rates": [{"code": "BookingCom", "name": "Booking.com", "rate": 293, "tax": null}, {"code": "Agoda", "name": "Agoda.com", "rate": 270, "tax": null}, {"code": "CtripTA", "name": "Trip.com", "rate": 286, "tax": null}]}, "timestamp": 1795752507822}

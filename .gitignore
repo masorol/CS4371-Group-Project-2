@@ -1,23 +1,69 @@
+# ==========================================
+# Python Virtual Environments
+# ==========================================
 venv/
 .venv/
 
+# ==========================================
+# Python Cache and Test Files
+# ==========================================
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
+# ==========================================
+# Environment Variables and API Keys
+# ==========================================
 .env
+.env.*
+!.env.example
 
-data/*.jsonl
-data/*.json
-data/*.tmp
+# ==========================================
+# Large or Generated Datasets
+# ==========================================
+# Ignore all JSONL, JSON, Parquet, and temporary data files
+data/**/*.jsonl
+data/**/*.json
+data/**/*.parquet
+data/**/*.tmp
+data/**/*.temp
+data/**/*.xlsx
+data/**/*.csv
 
-logs/*.log
+# Ignore raw downloaded datasets
+data/raw/
 
+# Ignore generated processed datasets
+data/processed/
+
+# ==========================================
+# Logs and Temporary Files
+# ==========================================
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# ==========================================
+# IDE and Editor Files
+# ==========================================
 .vscode/
 .idea/
-data/*.parquet
 
+# ==========================================
+# Jupyter Notebook Checkpoints
+# ==========================================
 .ipynb_checkpoints/
 
-data/*.xlsx
-data/hn_manual_label_sample.csv
+# ==========================================
+# Operating System Files
+# ==========================================
+.DS_Store
+Thumbs.db

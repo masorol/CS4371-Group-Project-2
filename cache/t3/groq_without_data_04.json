@@ -1,0 +1,10 @@
+{
+  "provider": "groq",
+  "model": "openai/gpt-oss-120b",
+  "condition": "without_data",
+  "batch": 4,
+  "retrieved_at_utc": "2026-11-27T02:22:37.011614+00:00",
+  "prompt_sha256": "602c6530456ea7bc06007df694642e1900c63ac28603e25400cc4de2055d82db",
+  "prompt": "You are evaluating reported NYPD complaints, NOT individual visitor safety. For EACH supplied NYC police precinct, assign an integer rating from 1 to 5, where 1 means fewest reported incidents and 5 means most, relative to NYC precincts. Also estimate its average reported incidents per month. Return JSON ONLY in this format: {\"predictions\":[{\"precinct\":\"1\",\"rating\":3,\"estimated_monthly_incidents\":100.0}]}. Include every precinct exactly once. Do not invent additional precincts. No incident counts are provided. Estimate only from your prior knowledge. Do not claim these estimates are verified.\nINPUT DATA:\n[{\"precinct\": \"49\"}, {\"precinct\": \"5\"}, {\"precinct\": \"50\"}, {\"precinct\": \"52\"}, {\"precinct\": \"6\"}, {\"precinct\": \"60\"}, {\"precinct\": \"61\"}, {\"precinct\": \"62\"}, {\"precinct\": \"63\"}, {\"precinct\": \"66\"}, {\"precinct\": \"67\"}, {\"precinct\": \"68\"}]",
+  "raw_response": "{\"predictions\":[{\"precinct\":\"49\",\"rating\":4,\"estimated_monthly_incidents\":180.0},{\"precinct\":\"5\",\"rating\":5,\"estimated_monthly_incidents\":300.0},{\"precinct\":\"50\",\"rating\":4,\"estimated_monthly_incidents\":170.0},{\"precinct\":\"52\",\"rating\":4,\"estimated_monthly_incidents\":160.0},{\"precinct\":\"6\",\"rating\":5,\"estimated_monthly_incidents\":250.0},{\"precinct\":\"60\",\"rating\":3,\"estimated_monthly_incidents\":120.0},{\"precinct\":\"61\",\"rating\":3,\"estimated_monthly_incidents\":110.0},{\"precinct\":\"62\",\"rating\":3,\"estimated_monthly_incidents\":100.0},{\"precinct\":\"63\",\"rating\":3,\"estimated_monthly_incidents\":95.0},{\"precinct\":\"66\",\"rating\":4,\"estimated_monthly_incidents\":190.0},{\"precinct\":\"67\",\"rating\":3,\"estimated_monthly_incidents\":105.0},{\"precinct\":\"68\",\"rating\":3,\"estimated_monthly_incidents\":100.0}]}"
+}

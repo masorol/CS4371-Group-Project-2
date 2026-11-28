@@ -1,0 +1,10 @@
+{
+  "provider": "groq",
+  "model": "openai/gpt-oss-120b",
+  "condition": "with_data",
+  "batch": 6,
+  "retrieved_at_utc": "2026-11-27T02:23:41.638812+00:00",
+  "prompt_sha256": "557e97409986712a96d1a26b0981bea52f43cabbd3df29d2a19cc934a44109f7",
+  "prompt": "You are evaluating reported NYPD complaints, NOT individual visitor safety. For EACH supplied NYC police precinct, assign an integer rating from 1 to 5, where 1 means fewest reported incidents and 5 means most, relative to NYC precincts. Also estimate its average reported incidents per month. Return JSON ONLY in this format: {\"predictions\":[{\"precinct\":\"1\",\"rating\":3,\"estimated_monthly_incidents\":100.0}]}. Include every precinct exactly once. Do not invent additional precincts. The supplied actual_monthly_avg values are verified monthly averages for 2022-2024. Use these values as the basis for your estimates and ratings.\nINPUT DATA:\n[{\"precinct\": \"83\", \"actual_monthly_avg\": 617.1944}, {\"precinct\": \"84\", \"actual_monthly_avg\": 536.8056}, {\"precinct\": \"88\", \"actual_monthly_avg\": 348.6667}, {\"precinct\": \"9\", \"actual_monthly_avg\": 499.2778}, {\"precinct\": \"90\", \"actual_monthly_avg\": 542.3056}, {\"precinct\": \"94\", \"actual_monthly_avg\": 367.4722}]",
+  "raw_response": "{\"predictions\":[{\"precinct\":\"83\",\"rating\":5,\"estimated_monthly_incidents\":617.1944},{\"precinct\":\"84\",\"rating\":4,\"estimated_monthly_incidents\":536.8056},{\"precinct\":\"88\",\"rating\":1,\"estimated_monthly_incidents\":348.6667},{\"precinct\":\"9\",\"rating\":3,\"estimated_monthly_incidents\":499.2778},{\"precinct\":\"90\",\"rating\":5,\"estimated_monthly_incidents\":542.3056},{\"precinct\":\"94\",\"rating\":2,\"estimated_monthly_incidents\":367.4722}]}"
+}
