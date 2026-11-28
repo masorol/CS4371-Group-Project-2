@@ -2,6 +2,7 @@ import json
 import os
 import time
 from datetime import date, datetime, timedelta, timezone
+import calendar
 
 import pandas as pd
 import requests
@@ -161,9 +162,16 @@ def fetch_all_rates(hotels, chk_in=CHK_IN, chk_out=CHK_OUT, live=False, adults=N
 
 def get_top5_precincts(month):
 	"""
-	TEMPORARY stand-in for Person 1's Task 2 output.
-	Top 5 precincts by average incidents in the given month (1-12), 2022-2024.
+	Top 5 precincts by average reported incidents in the given month (1-12).
+	Uses Task 2's output (outputs/t2_outlook_<month>.csv) when it exists. For months
+	Task 2 has not produced, computes the same list from the Task 1 data.
 	"""
+	path = os.path.join("outputs", f"t2_outlook_{calendar.month_name[month].lower()}.csv")
+	if os.path.exists(path):
+		t2 = pd.read_csv(path)
+		top = t2.dropna(subset=["top_incidents_rank"]).sort_values("top_incidents_rank")
+		return [int(p) for p in top["precinct"].head(5)]
+
 	df = load_incidents()
 	monthly = df[df["month"] == month]
 	avg = monthly.groupby("precinct")["total_incidents"].mean()
@@ -281,6 +289,7 @@ def describe_sources(df):
 def search_hotels(check_in, nights, max_price, guests=1, n_hotels=20, live=True):
 	"""
 	Entry point for the app (Task 5). Returns (hotels table, sentence describing the price sources).
+	guests: number of adults, sent to Xotelo (prices change with group size).
 	Raises RuntimeError if no prices are available at all (API down and nothing cached).
 	"""
 	chk_in = date.fromisoformat(check_in)

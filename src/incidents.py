@@ -10,7 +10,7 @@ INCIDENTS_ZIP = INCIDENTS_PATH + ".zip"
 # Precincts to leave out of rankings. Empty for now, so nothing is excluded.
 # Candidate: 116, created from parts of 105 and 113 near the end of 2022 - 2024, so its
 # few reported incidents reflect when it started, not the area. To exclude it" {116}
-EXCLUDED_PRECINCTS = set()
+EXCLUDED_PRECINCTS = {116}
 
 def load_incidents(path=INCIDENTS_PATH, zip_path=INCIDENTS_ZIP, exclude=EXCLUDED_PRECINCTS):
 	"""
