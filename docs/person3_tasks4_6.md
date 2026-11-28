@@ -12,9 +12,9 @@ Tested on Python 3.14.
 - [x] Task 4 final run with 800 hotels for July and December (outputs and Xotelo cache committed)
 - [x] Task 4: guests parameter (`search_hotels(..., guests=N)`)
 - [x] Task 4: months confirmed (July and December, matching Task 8)
-- [ ] Task 4: swap in the official Task 2 top-5 list when it exists
+- [x] Task 4: uses Task 2's top-5 list (`outputs/t2_outlook_<month>.csv`) when it exists, with a fallback for other months
 - [x] Tasks 4 and 6: switched to Person 1's final `neighbourhood_month.parquet` (loaded through `src/incidents.py`)
-- [ ] Precinct 116: not excluded for now; `EXCLUDED_PRECINCTS` in `src/incidents.py` is ready if the team decides to (see Known data issues)
+- [x] Precinct 116: excluded from rankings, matching Task 2 (`EXCLUDED_PRECINCTS = {116}`; see Known data issues)
 - [x] Task 6 (`src/task6_best_months.py`): monthly temperatures combined with incident rates, top 3 months, sensitivity check
 - [x] Task 6: rerun on Person 1's final `neighbourhood_month.parquet`
 
@@ -42,7 +42,7 @@ df = load_incidents()                 # drops any precinct in EXCLUDED_PRECINCTS
 df_all = load_incidents(exclude=())   # every precinct, for city-wide totals
 ```
 
-`EXCLUDED_PRECINCTS` in the same file holds precincts to leave out of rankings. It is currently empty, so nothing is excluded.
+`EXCLUDED_PRECINCTS` in the same file holds precincts to leave out of rankings: currently `{116}`, matching Task 2.
 
 ## Geo utilities (`src/geo_utils.py`)
 
@@ -102,7 +102,7 @@ print(message)   # e.g. "Live prices for all 18 hotels."
 | `cheapest_options(df, max_price, month, include_hostels=True)` | `(cheapest hotel within budget, cheapest within budget outside that month's top-5 incident precincts)`. Either can be `None`. Pass `include_hostels=False` to skip hostels. |
 | `find_nearby(df, hotel_key, radius_km=2.0)` | Every other hotel within 2 km of the chosen hotel, cheapest first, with distance, precinct and savings. |
 | `describe_sources(df)` | One sentence describing where the prices came from and how old they are. |
-| `get_top5_precincts(month)` | **Temporary** stand-in for Person 1's Task 2 top-5 list, computed from the final Task 1 parquet. To be replaced by Task 2's official output. |
+| `get_top5_precincts(month)` | Top 5 precincts by average reported incidents for a month. Reads Task 2's `outputs/t2_outlook_<month>.csv` (`top_incidents_rank` 1-5) when it exists; for months Task 2 has not produced, computes the same list from the Task 1 data (precinct 116 excluded). Task 2 treats missing precinct-months as zero while the fallback averages only existing months; for July and December the two give identical lists. |
 
 ### Stay dates
 
@@ -281,14 +281,13 @@ September and August stay in the top 3 under every weighting. June depends on th
 
 ### Precinct 116 (affects Tasks 2, 4, 6 and 8)
 
-NYC created the 116th precinct in southeast Queens from parts of precincts 105 and 113 near the end of the 2022-2024 period. In the final incident data it has 6 incidents in 2022, 10 in 2023 and 308 in 2024, against roughly 8,000 to 9,000 a year in 105 and 113. Its low counts mean it barely existed yet, not that few incidents happened there. The precinct boundary file is current, so a hotel or attraction in that area is assigned to 116 and appears to have far fewer reported incidents than the area really had. **Current status: not excluded.** The team may decide to exclude it. The code is ready for that:
+NYC created the 116th precinct in southeast Queens from parts of precincts 105 and 113 near the end of the 2022-2024 period. In the final incident data it has 6 incidents in 2022, 10 in 2023 and 308 in 2024, against roughly 8,000 to 9,000 a year in 105 and 113. Its low counts mean it barely existed yet, not that few incidents happened there. The precinct boundary file is current, so a hotel or attraction in that area is assigned to 116 and appears to have far fewer reported incidents than the area really had. **Team decision: excluded from rankings, matching Task 2** (Task 2 drops it from its outlook, leaving 77 precincts). In code:
 
-- `EXCLUDED_PRECINCTS` in `src/incidents.py` is empty for now. Adding 116 (`EXCLUDED_PRECINCTS = {116}`) is the only change needed.
-- `load_incidents()` would then drop it, so the Task 4 top-5 stand-in and any other ranking never see it.
-- `cheapest_options` would never offer a hotel in an excluded precinct as "the cheapest outside the top-5 precincts", because its reported-incident level is not known. Hotels there would stay in `t4_hotels.csv` and in nearby searches.
-- Task 6 always keeps every precinct (`load_incidents(exclude=())`), because its city-wide monthly totals should count every reported incident.
+- `EXCLUDED_PRECINCTS = {116}` in `src/incidents.py`, so `load_incidents()` drops it and the Task 4 top-5 fallback never sees it.
+- `cheapest_options` never offers a hotel in 116 as "the cheapest outside the top-5 precincts", because its reported-incident level is not known. Hotels there stay in `t4_hotels.csv` and in nearby searches, since they are real places to stay.
+- Task 6 keeps it (`load_incidents(exclude=())`): its city-wide monthly totals add every precinct together, so where an incident was filed does not matter, and its 324 reported incidents are real. Excluding them would only undercount the city.
 
-Until then, precinct 116 counts as "outside the top 5", so a hotel there could be picked as the cheapest outside the top 5 despite its incomplete history. **None of the priced hotels in `t4_hotels.csv` (398 in July, 325 in December) is in precinct 116, so the current Task 4 results are unaffected either way.** Live searches through `search_hotels` could still return one.
+None of the priced hotels in `t4_hotels.csv` (398 in July, 325 in December) is in precinct 116, so the exclusion changes no current Task 4 result. Live searches through `search_hotels` could still return one, and the rule then applies.
 
 ### Hotel prices (Task 4)
 
