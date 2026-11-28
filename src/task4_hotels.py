@@ -52,6 +52,7 @@ def cached_get(endpoint, params, live=False):
 			with open(path, encoding="utf-8") as f:
 				return json.load(f), "cache_fallback"
 
+		data["_received_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
 		with open(path, "w", encoding="utf-8") as f:
 			json.dump(data, f)
 		time.sleep(1)

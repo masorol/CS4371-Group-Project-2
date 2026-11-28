@@ -132,6 +132,7 @@ Both are midweek, avoid holidays, and fall within Xotelo's roughly 11-month book
 - Error responses are never cached.
 - The batch run (`python -m src.task4_hotels`) uses `live=False`, so it only fetches what is missing. A run that is interrupted or rate-limited can simply be rerun.
 - The committed cache (`cache/xotelo/`, about 1,700 files, 0.7 MB) covers both batch stays, so the outputs can be rebuilt without calling Xotelo.
+- Every saved response records when it was received in `_received_at` (UTC). Files saved before this field existed were backfilled from their file modification times on the original machine by `tools/backfill_received_at.py`, and are marked `"_received_at_source": "file modification time (backfilled)"`. Rates responses also carry Xotelo's own `timestamp`.
 - The guest count is part of the cache key: a 2-adult search is cached separately (`..._adults-2_...`) and never mixed with default prices.
 
 ### Guests
@@ -215,14 +216,14 @@ Output: `outputs/t6_best_months.csv`, one row per month, best first.
 | `distance_from_70f` | Degrees away from a comfortable 70°F, hotter or colder |
 | `avg_monthly_incidents` | City-wide incidents in that month, averaged over 2022 to 2024 |
 | `avg_incidents_per_day` | The same, divided by the days in each month (February 2024 counted as 29 days) |
-| `comfort_score`, `safety_score` | Both measures scaled to 0 to 1, where 1 is best |
+| `comfort_score`, `low_incident_score` | Both measures scaled to 0 to 1, where 1 is best (closest to 70°F, fewest reported incidents per day) |
 | `score`, `rank` | Combined score and rank |
 
 ### Scoring rule
 
 1. **Comfort.** Min-max scale `distance_from_70f` to 0 to 1 and flip it, so the month closest to 70°F scores 1 and the furthest scores 0.
-2. **Safety.** Min-max scale `avg_incidents_per_day` the same way, so the month with the lowest incident rate scores 1.
-3. **Score** = 0.6 × comfort + 0.4 × safety.
+2. **Reported incidents.** Min-max scale `avg_incidents_per_day` the same way, so the month with the lowest rate of reported incidents scores 1 (`low_incident_score`).
+3. **Score** = 0.6 × comfort + 0.4 × low-incident score.
 
 Why these choices:
 - Incidents are compared **per day**, not as monthly totals. February has about 10% fewer days than a 31-day month, so its raw total looks lower even when the daily rate is not. In this data February has the lowest monthly total (40,430) but January has the lowest daily rate (1,402 versus 1,426).
@@ -245,29 +246,29 @@ Why these choices:
 
 ### Sensitivity check
 
-| Weights (comfort / safety) | Top 3 |
+| Weights (comfort / reported incidents) | Top 3 |
 |---|---|
 | 60 / 40 (chosen) | September, June, August |
 | 70 / 30 | September, June, August |
 | 50 / 50 | September, April, August |
 
-September and August stay in the top 3 under every weighting. June depends on the weights: it has the best weather but the highest incident rate of any month (safety score 0), so it drops out when safety counts as much as comfort, and April takes its place.
+September and August stay in the top 3 under every weighting. June depends on the weights: it has the best weather but the highest rate of reported incidents of any month (low-incident score 0), so it drops out when reported incidents count as much as comfort, and April takes its place.
 
 ### Limitations
 
-- Min-max scaling stretches small differences. Incident rates vary about 15% across the year, but scaling gives them the same 0-to-1 spread as a 33-degree temperature range, so it exaggerates how different the months are on safety.
+- Min-max scaling stretches small differences. Incident rates vary about 15% across the year, but scaling gives them the same 0-to-1 spread as a 33-degree temperature range, so it exaggerates how different the months are on reported incidents.
 - Distance from 70°F treats too hot and too cold the same, and ignores humidity, rain and snow.
-- City-wide incident rates say little about the precinct a visitor actually stays in. Task 2 and Task 4 handle neighbourhood-level risk.
+- City-wide incident rates say little about the precinct a visitor actually stays in. Task 2 and Task 4 look at reported incidents by neighbourhood.
 - The incident figures come from the example parquet (Person 1's earlier draft output, not a course file) until Person 1's final file is in place.
 - Temperatures cover 2020-2024 while incidents cover 2022-2024, as the handout specifies.
 - Monthly averages hide extremes: a month averaging 70°F can still include heat waves or cold snaps.
-- Summer incident rates partly reflect more people being out, not only higher risk.
+- Summer incident rates partly reflect more people being out, not only a higher chance of an incident for any one visitor.
 
 ## Known data issues and limitations
 
 ### Precinct 116 (affects Tasks 2, 4, 6 and 8)
 
-NYC created the 116th precinct in southeast Queens from parts of precincts 105 and 113 near the end of the 2022-2024 period. In the incident data it has 6 incidents in 2022, 10 in 2023 and 312 in 2024, against roughly 8,000 to 9,000 a year in 105 and 113. Its low counts mean it barely existed yet, not that it is safe. The precinct boundary file is current, so a hotel or attraction in that area is assigned to 116 and looks far safer than it is. The team needs one rule for it (exclude it, or use 2024 only) and should state it in the report.
+NYC created the 116th precinct in southeast Queens from parts of precincts 105 and 113 near the end of the 2022-2024 period. In the incident data it has 6 incidents in 2022, 10 in 2023 and 312 in 2024, against roughly 8,000 to 9,000 a year in 105 and 113. Its low counts mean it barely existed yet, not that few incidents happened there. The precinct boundary file is current, so a hotel or attraction in that area is assigned to 116 and appears to have far fewer reported incidents than the area really had. The team needs one rule for it (exclude it, or use 2024 only) and should state it in the report.
 
 ### Hotel prices (Task 4)
 
@@ -289,6 +290,10 @@ NYC created the 116th precinct in southeast Queens from parts of precincts 105 a
 
 ## Data sources
 
-- NYC Police Precincts (NYC Open Data `y76i-bdw7`): https://data.cityofnewyork.us/resource/y76i-bdw7.geojson
-- Xotelo API (NYC location key `g60763`, no key required): https://data.xotelo.com/api
-- City temperatures: `city_temperature.csv`, provided with Homework 2 and Homework 4
+| Source | What | Retrieved | Notes |
+|---|---|---|---|
+| NYC Open Data, Police Precincts (`y76i-bdw7`) | Precinct boundaries (GeoJSON), 78 precincts | 2026-11-26 | https://data.cityofnewyork.us/resource/y76i-bdw7.geojson, saved to `data/precincts.geojson` |
+| Xotelo API (`/list`, location key `g60763`) | NYC hotel list with coordinates | 2026-11-26 to 2026-11-27 | https://data.xotelo.com/api, no key required. Each saved page has `_received_at` |
+| Xotelo API (`/rates`) | Nightly prices by booking site | 2026-11-26 to 2026-11-27 | Each saved response has Xotelo's `timestamp` and `_received_at`; each hotel row has `retrieved_at` |
+| `city_temperature.csv` | Daily average temperatures, 30 US cities, 2020-2024 | Provided with Homework 2 and Homework 4 | Course file, saved to `data/city_temperature.csv` |
+| Person 1's Task 1 output | Reported incidents per precinct per month, 2022-2024 | Draft from 2026-11-25 (final pending) | Derived from NYC Open Data, NYPD Complaint Data Historic (`qgea-i56i`) |

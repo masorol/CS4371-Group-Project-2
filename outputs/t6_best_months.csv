@@ -1,4 +1,4 @@
-Month,month_name,avg_temp_f,distance_from_70f,avg_monthly_incidents,avg_incidents_per_day,comfort_score,safety_score,score,rank
+Month,month_name,avg_temp_f,distance_from_70f,avg_monthly_incidents,avg_incidents_per_day,comfort_score,low_incident_score,score,rank
 9,September,69.44,0.56,46668.0,1555.6,0.997,0.265,0.704,1
 6,June,70.446,0.446,48325.0,1610.833,1.0,0.0,0.6,2
 8,August,75.769,5.769,48567.333,1566.688,0.839,0.212,0.588,3

@@ -1,1 +1,1 @@
-{"error": null, "result": {"chk_in": "2026-12-08", "chk_out": "2026-12-11", "currency": "USD", "rates": [{"code": "Marriott1", "name": "LeMeridien.com", "rate": 1275, "tax": null}]}, "timestamp": 1795759620979}
+{"error": null, "result": {"chk_in": "2026-12-08", "chk_out": "2026-12-11", "currency": "USD", "rates": [{"code": "Marriott1", "name": "LeMeridien.com", "rate": 1275, "tax": null}]}, "timestamp": 1795759620979, "_received_at": "2026-11-27T06:07:03+00:00", "_received_at_source": "file modification time (backfilled)"}

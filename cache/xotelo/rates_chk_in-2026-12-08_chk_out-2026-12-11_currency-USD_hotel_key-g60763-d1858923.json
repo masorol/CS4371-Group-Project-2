@@ -1,1 +1,1 @@
-{"error": null, "result": {"chk_in": "2026-12-08", "chk_out": "2026-12-11", "currency": "USD", "rates": [{"code": "HiltonImages", "name": "DoubleTree", "rate": 856, "tax": null}]}, "timestamp": 1795757656298}
+{"error": null, "result": {"chk_in": "2026-12-08", "chk_out": "2026-12-11", "currency": "USD", "rates": [{"code": "HiltonImages", "name": "DoubleTree", "rate": 856, "tax": null}]}, "timestamp": 1795757656298, "_received_at": "2026-11-27T05:34:19+00:00", "_received_at_source": "file modification time (backfilled)"}

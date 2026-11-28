@@ -1,1 +1,1 @@
-{"error": null, "result": {"chk_in": "2026-12-08", "chk_out": "2026-12-11", "currency": "USD", "rates": [{"code": "Agoda", "name": "Agoda.com", "rate": 606, "tax": null}]}, "timestamp": 1795757373033}
+{"error": null, "result": {"chk_in": "2026-12-08", "chk_out": "2026-12-11", "currency": "USD", "rates": [{"code": "Agoda", "name": "Agoda.com", "rate": 606, "tax": null}]}, "timestamp": 1795757373033, "_received_at": "2026-11-27T05:29:35+00:00", "_received_at_source": "file modification time (backfilled)"}
