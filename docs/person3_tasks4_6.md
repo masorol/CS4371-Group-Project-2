@@ -11,10 +11,12 @@ Tested on Python 3.14.
 - [x] Task 4 test run for July and December (60 hotels)
 - [x] Task 4 final run with 800 hotels for July and December (outputs and Xotelo cache committed)
 - [x] Task 4: guests parameter (`search_hotels(..., guests=N)`)
-- [ ] Task 4: confirm the months with Persons 1 and 2, and swap in the official Task 2 top-5 list
-- [ ] Tasks 4 and 6: switch to Person 1's final `neighbourhood_month.parquet` and decide how to handle precinct 116 (see Known data issues)
+- [x] Task 4: months confirmed (July and December, matching Task 8)
+- [ ] Task 4: swap in the official Task 2 top-5 list when it exists
+- [x] Tasks 4 and 6: switched to Person 1's final `neighbourhood_month.parquet` (loaded through `src/incidents.py`)
+- [ ] Precinct 116: not excluded for now; `EXCLUDED_PRECINCTS` in `src/incidents.py` is ready if the team decides to (see Known data issues)
 - [x] Task 6 (`src/task6_best_months.py`): monthly temperatures combined with incident rates, top 3 months, sensitivity check
-- [ ] Task 6: rerun on Person 1's final `neighbourhood_month.parquet` (currently uses the example file)
+- [x] Task 6: rerun on Person 1's final `neighbourhood_month.parquet`
 
 ## Setup
 
@@ -29,6 +31,18 @@ Run everything from the project root with `python -m`, so `from src...` imports 
 ```powershell
 python -m src.task4_hotels
 ```
+
+## Incident data loader (`src/incidents.py`)
+
+`load_incidents()` returns Person 1's Task 1 table (one row per precinct, year and month). Git stores it zipped (`data/processed/neighbourhood_month.parquet.zip`) because `.gitignore` ignores the unzipped folder, so the first call extracts it to `data/processed/neighbourhood_month.parquet/`. Used by Tasks 4 and 6, and available for Tasks 2, 5 and 8:
+
+```python
+from src.incidents import load_incidents
+df = load_incidents()                 # drops any precinct in EXCLUDED_PRECINCTS
+df_all = load_incidents(exclude=())   # every precinct, for city-wide totals
+```
+
+`EXCLUDED_PRECINCTS` in the same file holds precincts to leave out of rankings. It is currently empty, so nothing is excluded.
 
 ## Geo utilities (`src/geo_utils.py`)
 
@@ -88,7 +102,7 @@ print(message)   # e.g. "Live prices for all 18 hotels."
 | `cheapest_options(df, max_price, month, include_hostels=True)` | `(cheapest hotel within budget, cheapest within budget outside that month's top-5 incident precincts)`. Either can be `None`. Pass `include_hostels=False` to skip hostels. |
 | `find_nearby(df, hotel_key, radius_km=2.0)` | Every other hotel within 2 km of the chosen hotel, cheapest first, with distance, precinct and savings. |
 | `describe_sources(df)` | One sentence describing where the prices came from and how old they are. |
-| `get_top5_precincts(month)` | **Temporary** stand-in for Person 1's Task 2 top-5 list, computed from the example parquet. To be replaced by Task 2's official output. |
+| `get_top5_precincts(month)` | **Temporary** stand-in for Person 1's Task 2 top-5 list, computed from the final Task 1 parquet. To be replaced by Task 2's official output. |
 
 ### Stay dates
 
@@ -99,7 +113,7 @@ The batch run uses one stay per Task 2 / Task 8 month, set in `STAYS` at the top
 | July | 2027-07-13 (Tue) | 2027-07-16 (Fri) | 3 |
 | December | 2026-12-08 (Tue) | 2026-12-11 (Fri) | 3 |
 
-Both are midweek, avoid holidays, and fall within Xotelo's roughly 11-month booking window (December 2027 is outside it). These are provisional until the team confirms its two months. `N_HOTELS` sets how many hotels the batch run fetches (60 for testing, about 800 for the final run).
+Both are midweek, avoid holidays, and fall within Xotelo's roughly 11-month booking window (December 2027 is outside it). Confirmed: Task 8 uses the same two months. `N_HOTELS` sets how many hotels the batch run fetches (60 for testing, about 800 for the final run).
 
 ### Hotel table columns (`t4_hotels.csv`, and the DataFrame from `search_hotels`)
 
@@ -167,13 +181,13 @@ Test with 5 hotels in July and a $400 budget: 4 hotels fit for 1 guest and 2 for
 | | July (Jul 13-16, 2027) | December (Dec 8-11, 2026) |
 |---|---|---|
 | Hotels fetched (with coordinates) | 800 | 800 |
-| With prices for the stay | 397 | 325 |
+| With prices for the stay | 398 | 325 |
 | Outside NYC precincts | 1 | 2 |
 | Failed requests | 0 | 0 (after one retry run) |
 | Precincts covered (of 78) | 28 | 28 |
-| Cheapest under $150 | Kama Central Park Hostel (precinct 24), $70 | HI New York City Hostel (precinct 24), $76 |
+| Cheapest under $150 | HI New York City Hostel (precinct 24), $70 (tied with Kama Central Park Hostel, also precinct 24) | HI New York City Hostel (precinct 24), $76 |
 | Cheapest non-hostel under $150 | New York Spirit Retreats (precinct 10), $93 | Days Inn by Wyndham Staten Island (precinct 121), $87 |
-| Hotels within 2 km of ROW NYC | 259 (8 cheaper) | 202 (16 cheaper) |
+| Hotels within 2 km of ROW NYC | 260 (8 cheaper) | 202 (16 cheaper) |
 | Hotels within 2 km of The FIDI Hotel | 49 (21 cheaper) | 46 (9 cheaper) |
 
 Cleaning and data notes:
@@ -191,7 +205,6 @@ Findings for the report:
 
 ### Open decisions
 
-- Months: using July and December until Persons 1 and 2 confirm. If they change, only `STAYS` needs editing.
 - Batch outputs stay at 1 adult; rerunning 1,600 requests for 2 adults would add about 7% to prices and risk another rate-limit.
 
 ## Task 6: Best month to visit (`src/task6_best_months.py`)
@@ -205,7 +218,7 @@ Output: `outputs/t6_best_months.csv`, one row per month, best first.
 ### Data
 
 - Temperatures: `data/city_temperature.csv` (from Homework 2 and 4). New York is spelled `"New York"`, with 1,827 daily rows for 2020 to 2024 and no `-99` values (the code still drops them as a safeguard). Temperatures are in °F.
-- Incidents: `data/neighbourhood_month_example.parquet` (Person 1's earlier draft of the Task 1 output). Switch `INCIDENTS_PATH` to Person 1's final `neighbourhood_month.parquet` when it exists.
+- Incidents: Person 1's final Task 1 output, `data/processed/neighbourhood_month.parquet.zip`, loaded with `load_incidents()` from `src/incidents.py`.
 
 ### Columns
 
@@ -226,21 +239,21 @@ Output: `outputs/t6_best_months.csv`, one row per month, best first.
 3. **Score** = 0.6 × comfort + 0.4 × low-incident score.
 
 Why these choices:
-- Incidents are compared **per day**, not as monthly totals. February has about 10% fewer days than a 31-day month, so its raw total looks lower even when the daily rate is not. In this data February has the lowest monthly total (40,430) but January has the lowest daily rate (1,402 versus 1,426).
+- Incidents are compared **per day**, not as monthly totals. February has about 10% fewer days than a 31-day month, so its raw total looks lower even when the daily rate is not. In this data February has the lowest monthly total (40,365) but January has the lowest daily rate (1,400 versus 1,424).
 - Both measures are **scaled to 0 to 1** before weighting, because degrees and incident counts are on very different scales.
-- **Comfort gets more weight** because weather affects every day of a trip, while the city-wide incident rate varies only about 15% across the year (1,402 to 1,611 per day).
+- **Comfort gets more weight** because weather affects every day of a trip, while the city-wide rate of reported incidents varies only about 15% across the year (1,400 to 1,608 per day).
 
 ### Results
 
 | Rank | Month | Avg temp | From 70°F | Incidents per day | Score |
 |---|---|---|---|---|---|
-| 1 | September | 69.4°F | 0.6 | 1,556 | 0.704 |
-| 2 | June | 70.4°F | 0.4 | 1,611 | 0.600 |
-| 3 | August | 75.8°F | 5.8 | 1,567 | 0.588 |
-| 4 | April | 51.3°F | 18.7 | 1,475 | 0.531 |
-| 5 | May | 60.4°F | 9.6 | 1,561 | 0.529 |
+| 1 | September | 69.4°F | 0.6 | 1,553 | 0.704 |
+| 2 | June | 70.4°F | 0.4 | 1,608 | 0.600 |
+| 3 | August | 75.8°F | 5.8 | 1,564 | 0.588 |
+| 4 | April | 51.3°F | 18.7 | 1,473 | 0.529 |
+| 5 | May | 60.4°F | 9.6 | 1,559 | 0.527 |
 | ... | | | | | |
-| 12 | February | 37.1°F | 32.9 | 1,426 | 0.366 |
+| 12 | February | 37.1°F | 32.9 | 1,424 | 0.365 |
 
 **Recommendation: September, June and August.**
 
@@ -259,7 +272,7 @@ September and August stay in the top 3 under every weighting. June depends on th
 - Min-max scaling stretches small differences. Incident rates vary about 15% across the year, but scaling gives them the same 0-to-1 spread as a 33-degree temperature range, so it exaggerates how different the months are on reported incidents.
 - Distance from 70°F treats too hot and too cold the same, and ignores humidity, rain and snow.
 - City-wide incident rates say little about the precinct a visitor actually stays in. Task 2 and Task 4 look at reported incidents by neighbourhood.
-- The incident figures come from the example parquet (Person 1's earlier draft output, not a course file) until Person 1's final file is in place.
+- An earlier run on Person 1's draft output (about 0.2% more incidents, before coordinate and outside-NYC filtering) gave the same ranking and top 3.
 - Temperatures cover 2020-2024 while incidents cover 2022-2024, as the handout specifies.
 - Monthly averages hide extremes: a month averaging 70°F can still include heat waves or cold snaps.
 - Summer incident rates partly reflect more people being out, not only a higher chance of an incident for any one visitor.
@@ -268,7 +281,14 @@ September and August stay in the top 3 under every weighting. June depends on th
 
 ### Precinct 116 (affects Tasks 2, 4, 6 and 8)
 
-NYC created the 116th precinct in southeast Queens from parts of precincts 105 and 113 near the end of the 2022-2024 period. In the incident data it has 6 incidents in 2022, 10 in 2023 and 312 in 2024, against roughly 8,000 to 9,000 a year in 105 and 113. Its low counts mean it barely existed yet, not that few incidents happened there. The precinct boundary file is current, so a hotel or attraction in that area is assigned to 116 and appears to have far fewer reported incidents than the area really had. The team needs one rule for it (exclude it, or use 2024 only) and should state it in the report.
+NYC created the 116th precinct in southeast Queens from parts of precincts 105 and 113 near the end of the 2022-2024 period. In the final incident data it has 6 incidents in 2022, 10 in 2023 and 308 in 2024, against roughly 8,000 to 9,000 a year in 105 and 113. Its low counts mean it barely existed yet, not that few incidents happened there. The precinct boundary file is current, so a hotel or attraction in that area is assigned to 116 and appears to have far fewer reported incidents than the area really had. **Current status: not excluded.** The team may decide to exclude it. The code is ready for that:
+
+- `EXCLUDED_PRECINCTS` in `src/incidents.py` is empty for now. Adding 116 (`EXCLUDED_PRECINCTS = {116}`) is the only change needed.
+- `load_incidents()` would then drop it, so the Task 4 top-5 stand-in and any other ranking never see it.
+- `cheapest_options` would never offer a hotel in an excluded precinct as "the cheapest outside the top-5 precincts", because its reported-incident level is not known. Hotels there would stay in `t4_hotels.csv` and in nearby searches.
+- Task 6 always keeps every precinct (`load_incidents(exclude=())`), because its city-wide monthly totals should count every reported incident.
+
+Until then, precinct 116 counts as "outside the top 5", so a hotel there could be picked as the cheapest outside the top 5 despite its incomplete history. **None of the priced hotels in `t4_hotels.csv` (398 in July, 325 in December) is in precinct 116, so the current Task 4 results are unaffected either way.** Live searches through `search_hotels` could still return one.
 
 ### Hotel prices (Task 4)
 
@@ -296,4 +316,4 @@ NYC created the 116th precinct in southeast Queens from parts of precincts 105 a
 | Xotelo API (`/list`, location key `g60763`) | NYC hotel list with coordinates | 2026-11-26 to 2026-11-27 | https://data.xotelo.com/api, no key required. Each saved page has `_received_at` |
 | Xotelo API (`/rates`) | Nightly prices by booking site | 2026-11-26 to 2026-11-27 | Each saved response has Xotelo's `timestamp` and `_received_at`; each hotel row has `retrieved_at` |
 | `city_temperature.csv` | Daily average temperatures, 30 US cities, 2020-2024 | Provided with Homework 2 and Homework 4 | Course file, saved to `data/city_temperature.csv` |
-| Person 1's Task 1 output | Reported incidents per precinct per month, 2022-2024 | Draft from 2026-11-25 (final pending) | Derived from NYC Open Data, NYPD Complaint Data Historic (`qgea-i56i`) |
+| Person 1's Task 1 output | Reported incidents per precinct per month, 2022-2024 | Final file added 2026-11-27 (`data/processed/neighbourhood_month.parquet.zip`) | Derived from NYC Open Data, NYPD Complaint Data Historic (`qgea-i56i`). 2,795 rows, 1,655,893 incidents |

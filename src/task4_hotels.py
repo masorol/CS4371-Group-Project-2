@@ -7,12 +7,12 @@ import pandas as pd
 import requests
 
 from src.geo_utils import load_precincts, find_precinct, haversine_km
+from src.incidents import load_incidents, EXCLUDED_PRECINCTS
 
 N_HOTELS = 800
 CACHE_DIR = os.path.join("cache", "xotelo")
 BASE_URL = "https://data.xotelo.com/api"
 NYC_LOCATION_KEY = "g60763"
-INCIDENTS_PATH = os.path.join("data", "neighbourhood_month_example.parquet")
 
 # One stay per Task 2 / Task 8 month: Tuesday to Friday, 3 nights, no holidays
 STAYS = {
@@ -159,12 +159,12 @@ def fetch_all_rates(hotels, chk_in=CHK_IN, chk_out=CHK_OUT, live=False, adults=N
 	return all_rows, failed
 
 
-def get_top5_precincts(month, path=INCIDENTS_PATH):
+def get_top5_precincts(month):
 	"""
 	TEMPORARY stand-in for Person 1's Task 2 output.
 	Top 5 precincts by average incidents in the given month (1-12), 2022-2024.
 	"""
-	df = pd.read_parquet(path)
+	df = load_incidents()
 	monthly = df[df["month"] == month]
 	avg = monthly.groupby("precinct")["total_incidents"].mean()
 	return [int(p) for p in avg.nlargest(5).index]
@@ -223,7 +223,7 @@ def cheapest_options(df, max_price, month, include_hostels=True):
 		return None, None
 	
 	top5 = get_top5_precincts(month)
-	outside_top5 = in_budget[in_budget["precinct"].notna() & ~in_budget["precinct"].isin(top5)]
+	outside_top5 = in_budget[in_budget["precinct"].notna() & ~in_budget["precinct"].isin(top5) & ~in_budget["precinct"].isin(EXCLUDED_PRECINCTS)]
 
 	cheapest = in_budget.iloc[0]
 	cheapest_outside = outside_top5.iloc[0] if not outside_top5.empty else None
